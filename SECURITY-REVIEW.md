@@ -33,3 +33,9 @@ Runtime behaviour on Omarchy 4.5.x; what `qs.Ui` components (`PopupCard`, `Widge
 - Finding 4 (guy.help tree walk): **mitigated.** try/catch, 10 s interval, documented in MANIFEST §6 as a deliberate reach.
 - Finding 1 (DEBUG logs of window titles): **open**, pending the right-click Close test.
 - guy.start retired; guy.tools gained Terminal / Theme / Lock / Restart entries, all fixed strings. No new findings.
+
+## Addendum — v0.3 (guy.taskbar + guy.favorites, verified in the diff 2026-10-30)
+- Finding 1 (DEBUG logs of window titles): **closed.** Zero `console.log` lines remain in either file.
+- Regression from the finding-3 fix, now fixed: an argv array that arrives through a Repeater's `modelData` is a Qt list, so `Array.isArray()` was false and the launch fell through to `sh -c` with the array joined by commas. Every Favorites / Browsers / Web apps launch was dead. `run()` now copies any non-string into a plain array before `execDetached`; strings still go through `sh -c` only for the fixed, hard-coded commands. Same shape as before: no user-controlled string reaches a shell.
+- Right-click Minimize/Close: the menu row was destroyed mid-handler when the menu closed; the work moved into `root.menuAction()`. No new process or file access.
+- Installer v0.2 (not yet run on a box): three more user files get a marked block with backup + byte-exact restore: `extensions/omarchy-menu.jsonc` (an `apps` entry; refuses if the file already defines one), `hypr/bindings.lua`, `hypr/looknfeel.lua`. Still user-level, no sudo.

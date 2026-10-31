@@ -21,7 +21,7 @@ BarWidget {
   property var pinnedIds: []
   readonly property var tools: {
     var appsRevision = DesktopEntries.applications.values.length
-    var out = [{ glyph: glyph(0xf003b), label: "All apps", command: "omarchy-shell omarchy.dock apps" }]
+    var out = [{ glyph: glyph(0xf003b), label: "All apps", command: "omarchy-menu toggle apps" }]
     for (var i = 0; i < root.pinnedIds.length; i++) {
       var entry = DesktopEntries.byId(root.pinnedIds[i])
       if (!entry) continue
@@ -43,10 +43,24 @@ BarWidget {
   property bool popupOpen: false
   function close() { popupOpen = false }
 
+  // Start the app first, then close the pop-up, all inside root, since
+  // closing can rebuild the tiles and destroy the one that was clicked.
+  function launch(command) {
+    root.run(command)
+    root.close()
+  }
+
   // A command is either an argument list, run as is, or a line for the shell.
+  // A list that came through a Repeater's modelData is a Qt list, which
+  // Array.isArray does not recognize, so copy it into a plain array first.
   function run(command) {
-    if (Array.isArray(command)) Quickshell.execDetached(command)
-    else Quickshell.execDetached(["sh", "-c", command])
+    if (typeof command === "string") {
+      Quickshell.execDetached(["sh", "-c", command])
+      return
+    }
+    var argv = []
+    for (var i = 0; i < command.length; i++) argv.push(String(command[i]))
+    Quickshell.execDetached(argv)
   }
 
   implicitWidth: button.implicitWidth
@@ -141,10 +155,7 @@ BarWidget {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: {
-              root.close()
-              root.run(choice.modelData.command)
-            }
+            onClicked: root.launch(choice.modelData.command)
           }
         }
       }

@@ -25,6 +25,9 @@ Rename to one product namespace (e.g. omnemo-os.*).
 | Stock dock | DISABLED (2026-10-30: it duplicated Favorites + Tools and popped up on bottom-edge hover, since every workspace floats). Sanctioned first-party switch: shell.json `disabledPlugins: ["omarchy.dock"]`; no stock files touched. KEEP `.dock.pinned`: guy.favorites reads it via `omarchy dock pinned`, which works with the plugin off | `omarchy plugin disable omarchy.dock` | `omarchy plugin enable omarchy.dock` |
 | Workspaces | floating by default (all) | `omarchy hyprland workspace layout default floating` | `... default dwindle` |
 | Window fit (Hyprland rule) | new floating windows open centered and no larger than the work area | append a marker-delimited block to ~/.config/hypr/hyprland.lua (see below) | remove the block, `hyprctl reload` |
+| Apps menu entry | the app grid lived in the (now off) dock, so `omarchy-menu toggle apps` and every Apps button went dead; an `apps` entry with all five fields (icon, label, aliases, provider, action) brings it back | marked block before the final brace of ~/.config/omarchy/extensions/omarchy-menu.jsonc (seeded from /usr/share/omarchy/config/… if absent; refuses if `apps` is already defined), then `omarchy-menu refresh` | restore backup byte-exact, refresh |
+| Apps shortcut | Super+Alt+Space opens that Apps list | marked block appended to ~/.config/hypr/bindings.lua: unbind, then `o.bind("SUPER + ALT + SPACE", "Apps", "omarchy-menu toggle apps")` | restore backup |
+| Cursor | the pointer no longer jumps to the window centre on a taskbar switch (Windows does not do that) | marked block appended to ~/.config/hypr/looknfeel.lua: `hl.config({ cursor = { no_warps = true } })` | restore backup |
 Layout today: left [omarchy.agents, guy.taskbar] · center [guy.tools, guy.help, guy.favorites] · right [omarchy.indicators, omarchy.elsewhen, omarchy.weather, omarchy.system-update, omarchy.keyboard-layout, omnemo.memory, omarchy.monitor, omarchy.audio, omarchy.network, omarchy.bluetooth, guy.clock, omarchy.power] · tray [].
 
 ### Window-fit rule (as written on the test laptop)
@@ -68,3 +71,5 @@ No system files, no sudo, no Omarchy source edits, no Hyprland keybinding change
 - Super+M minimize with the dock disabled: it uses special:minimized (no dock needed), but hasn't been re-clicked since 10-30.
 - KNOWN ISSUE: Chrome site notifications show as critical and stay until dismissed; turn them off per site in Chrome. (Stock Omarchy has no timeout setting for critical; upstream suggestion drafted, unposted.)
 - Correction: the v0.1 note 'the stock dock can't be disabled from config' was wrong; `disabledPlugins[]` is the switch.
+- GOTCHA: the plugin hot-reload logs 'reloading' but keeps running the OLD code. Only `omarchy-restart-shell` loads plugin edits.
+- The menu jsonc is seeded ONCE per user and goes stale against the package seed (comment lines differ already), so nothing may byte-match it against the seed.

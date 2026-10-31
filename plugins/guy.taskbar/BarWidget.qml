@@ -105,9 +105,16 @@ BarWidget {
   implicitHeight: barSize
 
   // A command is either an argument list, run as is, or a line for the shell.
+  // A list that came through a Repeater's modelData is a Qt list, which
+  // Array.isArray does not recognize, so copy it into a plain array first.
   function run(command) {
-    if (Array.isArray(command)) Quickshell.execDetached(command)
-    else Quickshell.execDetached(["sh", "-c", command])
+    if (typeof command === "string") {
+      Quickshell.execDetached(["sh", "-c", command])
+      return
+    }
+    var argv = []
+    for (var i = 0; i < command.length; i++) argv.push(String(command[i]))
+    Quickshell.execDetached(argv)
   }
 
   // Window addresses come from Hyprland, but check their shape anyway before
@@ -180,7 +187,6 @@ BarWidget {
 
   function closeWindow(address) {
     if (!root.validAddress(address)) return
-    console.log("guy.taskbar DEBUG closeWindow", address)
     Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.window.close({ window = \"address:" + address + "\" })"])
     root.refresh()
   }
@@ -218,15 +224,23 @@ BarWidget {
   property Item menuTile: null
 
   function openMenu(tile, w) {
-    console.log("guy.taskbar DEBUG openMenu", JSON.stringify(w))
     menuTile = null
     menuFor = w
     Qt.callLater(function() { root.menuTile = tile })
   }
   function closeMenu() {
-    console.log("guy.taskbar DEBUG closeMenu")
     menuTile = null
     menuFor = null
+  }
+  // Act on the window first, then close the menu.
+  function menuAction(action) {
+    var w = root.menuFor
+    if (w) {
+      if (action === "close") root.closeWindow(w.address)
+      else if (w.minimized) root.restoreWindow(w.address)
+      else root.minimizeWindow(w.address)
+    }
+    root.closeMenu()
   }
 
   Row {
@@ -440,15 +454,9 @@ BarWidget {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: {
-              console.log("guy.taskbar DEBUG menu row clicked", menuRow.modelData.action, JSON.stringify(root.menuFor))
-              var w = root.menuFor
-              root.closeMenu()
-              if (!w) return
-              if (menuRow.modelData.action === "close") root.closeWindow(w.address)
-              else if (w.minimized) root.restoreWindow(w.address)
-              else root.minimizeWindow(w.address)
-            }
+            // Hand off to root in one call: closing the menu empties this
+            // Repeater, which destroys this row while its handler still runs.
+            onClicked: root.menuAction(menuRow.modelData.action)
           }
         }
       }

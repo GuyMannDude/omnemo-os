@@ -17,6 +17,10 @@ SHELL_JSON="$CFG/omarchy/shell.json"
 PLUGIN_DST="$CFG/omarchy/plugins"
 WS_LUA="$STATE/omarchy/workspace-layouts/default.lua"
 HYPR_LUA="$CFG/hypr/hyprland.lua"
+BIND_LUA="$CFG/hypr/bindings.lua"
+LOOK_LUA="$CFG/hypr/looknfeel.lua"
+MENU_JSONC="$CFG/omarchy/extensions/omarchy-menu.jsonc"
+MENU_SEED="/usr/share/omarchy/config/omarchy/extensions/omarchy-menu.jsonc"
 OUR_STATE="$STATE/omnemo-os"
 RECORD="$OUR_STATE/installed.json"
 
@@ -86,6 +90,50 @@ windowrule_remove() {   # strip exactly our block from "$1" (in place)
   awk -v b="$RULE_BEGIN" -v e="$RULE_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$1" >"$tmp" && mv "$tmp" "$1"
 }
 
+# --- three more user files (MANIFEST §2 rows: Apps menu, Apps shortcut, cursor) --
+# Each is a stock-seeded USER file; we append one marked block and uninstall
+# restores the install-time backup byte-exact (or strips the block / removes the
+# file if it was absent). The dock is off, and the app grid lived in the dock,
+# so "Apps" is re-homed in the menu (all five fields are required or the page
+# comes up empty), Super+Alt+Space points at it, and the pointer stops jumping
+# to the window centre on a taskbar switch.
+bindings_block() {
+  printf '%s\n' "$RULE_BEGIN" \
+    'hl.unbind("SUPER + ALT + SPACE")' \
+    'o.bind("SUPER + ALT + SPACE", "Apps", "omarchy-menu toggle apps")' \
+    "$RULE_END"
+}
+looknfeel_block() {
+  printf '%s\n' "$RULE_BEGIN" \
+    'hl.config({ cursor = { no_warps = true } })' \
+    "$RULE_END"
+}
+MENU_BEGIN="// omnemo-os:begin (managed; removed by omnemo-os uninstall)"
+MENU_END="// omnemo-os:end"
+menu_block() {
+  printf '%s\n' "  $MENU_BEGIN" \
+    '  // The stock dock (switched off) held the app grid; "Apps" lives here instead.' \
+    '  "apps": {"icon":"󰀻","label":"Apps","aliases":["app","applications"],"provider":"apps","action":""},' \
+    "  $MENU_END"
+}
+# Insert our block just before the file's final closing brace (JSONC: one
+# top-level object, // comments, trailing commas allowed).
+menu_insert() {   # "$1" = file (in place)
+  local tmp; tmp="$(mktemp)"
+  awk -v blk="$(menu_block)" '
+    { L[NR]=$0 }
+    END {
+      last=0; for (i=NR; i>=1; i--) if (L[i] ~ /^[[:space:]]*}[[:space:]]*$/) { last=i; break }
+      if (!last) exit 3
+      for (i=1; i<=NR; i++) { if (i==last) print blk; print L[i] }
+    }' "$1" >"$tmp" || { rm -f "$tmp"; die "$1 has no closing brace; refusing"; }
+  mv "$tmp" "$1"
+}
+menu_remove() {   # strip exactly our block from "$1" (in place)
+  local tmp; tmp="$(mktemp)"
+  awk -v b="  $MENU_BEGIN" -v e="  $MENU_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$1" >"$tmp" && mv "$tmp" "$1"
+}
+
 # --- install ----------------------------------------------------------------
 cmd_install() {
   local allow_rc=0
@@ -114,6 +162,20 @@ cmd_install() {
     cp -p "$HYPR_LUA" "$bk/hyprland.lua"; hypr_was="present"
   fi
   local rule; rule="$(windowrule_block)"   # computed BEFORE any change so a failure here changes nothing
+  local menu_was="absent" bind_was="absent" look_was="absent"
+  if [[ -f "$MENU_JSONC" ]]; then
+    grep -qxF "  $MENU_BEGIN" "$MENU_JSONC" && die "$MENU_JSONC already carries an omnemo-os block; refusing"
+    grep -qE '^[[:space:]]*"apps"[[:space:]]*:' "$MENU_JSONC" && die "$MENU_JSONC already defines \"apps\" and it is not ours; refusing"
+    cp -p "$MENU_JSONC" "$bk/omarchy-menu.jsonc"; menu_was="present"
+  fi
+  if [[ -f "$BIND_LUA" ]]; then
+    grep -qxF "$RULE_BEGIN" "$BIND_LUA" && die "$BIND_LUA already carries an omnemo-os block; refusing"
+    cp -p "$BIND_LUA" "$bk/bindings.lua"; bind_was="present"
+  fi
+  if [[ -f "$LOOK_LUA" ]]; then
+    grep -qxF "$RULE_BEGIN" "$LOOK_LUA" && die "$LOOK_LUA already carries an omnemo-os block; refusing"
+    cp -p "$LOOK_LUA" "$bk/looknfeel.lua"; look_was="present"
+  fi
   say "backed up to $bk"
 
   for p in "${PLUGINS[@]}"; do cp -r "$PLUGIN_SRC/$p" "$PLUGIN_DST/$p"; done
@@ -130,13 +192,26 @@ cmd_install() {
   mkdir -p "$(dirname "$HYPR_LUA")"
   [[ -f "$HYPR_LUA" ]] || : >"$HYPR_LUA"
   printf '\n%s\n' "$rule" >>"$HYPR_LUA"
-  hyprctl reload >/dev/null 2>&1 || true
   say "windowrule written to $HYPR_LUA"
 
+  mkdir -p "$(dirname "$MENU_JSONC")"
+  if [[ ! -f "$MENU_JSONC" ]]; then
+    if [[ -f "$MENU_SEED" ]]; then cp -p "$MENU_SEED" "$MENU_JSONC"; else printf '{\n}\n' >"$MENU_JSONC"; fi
+  fi
+  menu_insert "$MENU_JSONC"
+  omarchy-menu refresh >/dev/null 2>&1 || true
+  [[ -f "$BIND_LUA" ]] || : >"$BIND_LUA"
+  printf '\n%s\n' "$(bindings_block)" >>"$BIND_LUA"
+  [[ -f "$LOOK_LUA" ]] || : >"$LOOK_LUA"
+  printf '\n%s\n' "$(looknfeel_block)" >>"$LOOK_LUA"
+  hyprctl reload >/dev/null 2>&1 || true
+  say "Apps menu entry, Super+Alt+Space and cursor rule written"
+
   jq -n --arg ts "$ts" --arg bk "$bk" --arg ws "$ws_was" --arg hy "$hypr_was" --arg v "$VERSION" \
+     --arg me "$menu_was" --arg bi "$bind_was" --arg lo "$look_was" \
      --arg sha "$(sha256sum "$bk/shell.json" | cut -d' ' -f1)" \
      --argjson plugins "$(printf '%s\n' "${PLUGINS[@]}" | jq -R . | jq -s .)" \
-     '{installed_at:$ts, edition_version:$v, backup_dir:$bk, shell_json_sha256:$sha, default_lua_was:$ws, hyprland_lua_was:$hy, plugins:$plugins}' \
+     '{installed_at:$ts, edition_version:$v, backup_dir:$bk, shell_json_sha256:$sha, default_lua_was:$ws, hyprland_lua_was:$hy, menu_jsonc_was:$me, bindings_lua_was:$bi, looknfeel_lua_was:$lo, plugins:$plugins}' \
      >"$RECORD"
   omarchy restart shell
   say "installed. Undo: omnemo-os uninstall"
@@ -147,6 +222,8 @@ cmd_uninstall() {
   need omarchy; need jq
   [[ -f "$RECORD" ]] || die "not installed (no $RECORD)"
   local bk ws_was hypr_was; bk="$(jq -r .backup_dir "$RECORD")"; ws_was="$(jq -r .default_lua_was "$RECORD")"; hypr_was="$(jq -r '.hyprland_lua_was // "absent"' "$RECORD")"
+  local menu_was bind_was look_was
+  menu_was="$(jq -r '.menu_jsonc_was // "untouched"' "$RECORD")"; bind_was="$(jq -r '.bindings_lua_was // "untouched"' "$RECORD")"; look_was="$(jq -r '.looknfeel_lua_was // "untouched"' "$RECORD")"
   [[ -f "$bk/shell.json" ]] || die "backup missing: $bk/shell.json; refusing to guess"
   local want have; want="$(jq -r .shell_json_sha256 "$RECORD")"; have="$(sha256sum "$bk/shell.json" | cut -d' ' -f1)"
   [[ "$want" == "$have" ]] || die "backup checksum mismatch; refusing to restore a tampered file"
@@ -159,6 +236,20 @@ cmd_uninstall() {
   case "$hypr_was" in
     present) cp -p "$bk/hyprland.lua" "$HYPR_LUA" ;;          # byte-exact stock user file
     absent)  [[ -f "$HYPR_LUA" ]] && { windowrule_remove "$HYPR_LUA"; [[ -s "$HYPR_LUA" ]] || rm -f "$HYPR_LUA"; } ;;
+  esac
+  # "untouched" = installed by a version that did not write these files.
+  case "$menu_was" in
+    present) cp -p "$bk/omarchy-menu.jsonc" "$MENU_JSONC" ;;
+    absent)  [[ -f "$MENU_JSONC" ]] && { menu_remove "$MENU_JSONC"; rm -f "$MENU_JSONC"; } ;;
+  esac
+  [[ "$menu_was" != untouched ]] && { omarchy-menu refresh >/dev/null 2>&1 || true; }
+  case "$bind_was" in
+    present) cp -p "$bk/bindings.lua" "$BIND_LUA" ;;
+    absent)  [[ -f "$BIND_LUA" ]] && { windowrule_remove "$BIND_LUA"; [[ -s "$BIND_LUA" ]] || rm -f "$BIND_LUA"; } ;;
+  esac
+  case "$look_was" in
+    present) cp -p "$bk/looknfeel.lua" "$LOOK_LUA" ;;
+    absent)  [[ -f "$LOOK_LUA" ]] && { windowrule_remove "$LOOK_LUA"; [[ -s "$LOOK_LUA" ]] || rm -f "$LOOK_LUA"; } ;;
   esac
   hyprctl reload >/dev/null 2>&1 || true
   # Reverse the one §2 command whose effect may live outside shell.json.
