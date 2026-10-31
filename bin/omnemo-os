@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # omnemo-os — install / uninstall / status for the Omnemo OS edition layer.
-# v0.9 (2026-10-30) written from MANIFEST.md; cold-run on a stock Omarchy 4.5.0rc2
-# laptop 2026-10-30: install, clicks, uninstall, byte-diff.
+# v0.9 (2026-10-30) written from MANIFEST.md; three cold runs on a stock Omarchy
+# 4.5.0rc2 laptop 2026-10-30: install, clicks, uninstall, byte-diff all PASS.
 # Contract: user-level only, no sudo, no stock file edits. install backs up every
 # file it will change; uninstall restores them byte-for-byte and removes only
 # what install created.
@@ -72,9 +72,9 @@ windowrule_block() {
   mon="$(hyprctl monitors -j | jq -c '[.[] | select(.focused==true)][0] // .[0]')"
   [[ -n "$mon" && "$mon" != "null" ]] || die "hyprctl monitors returned no monitor"
   w="$(jq -r .width <<<"$mon")"; h="$(jq -r .height <<<"$mon")"; scale="$(jq -r '.scale // 1' <<<"$mon")"
-  # The rule is computed before the bar moves, so on a stock box the bar is
-  # still on TOP: take the bottom reservation, else the top one, else 30 px.
-  rb="$(jq -r '[.reserved[3], .reserved[1], 30] | map(select(. != null and . > 0))[0] // 30' <<<"$mon")"
+  # The bar's height is whichever edge it reserves (a stock box still has it on
+  # top when this runs, before the bar moves to the bottom).
+  rb="$(jq -r '[.reserved[]?] | max // 0' <<<"$mon")"
   gaps="$(hyprctl getoption general:gaps_out -j | jq -r '.custom // "10"' | awk '{print $1}')"
   border="$(hyprctl getoption general:border_size -j | jq -r '.int // 2')"
   maxw="$(awk -v w="$w" -v s="$scale" -v g="$gaps" 'BEGIN{printf "%d", w/s - 2*g}')"
@@ -137,6 +137,26 @@ menu_remove() {   # strip exactly our block from "$1" (in place)
   awk -v b="  $MENU_BEGIN" -v e="  $MENU_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$1" >"$tmp" && mv "$tmp" "$1"
 }
 
+# The shell rebuilds the bar after some of these commands and can miss the
+# next call for a few seconds ("omarchy-shell is not responding"). Wait until
+# it answers, and try each step twice; every step is safe to repeat.
+wait_shell() {
+  local i
+  for (( i = 0; i < 150; i++ )); do
+    omarchy-shell shell ping >/dev/null 2>&1 && return 0
+    sleep 0.2
+  done
+}
+shell_step() {
+  local try
+  for try in 1 2; do
+    wait_shell
+    "$@" && return 0
+    sleep 2
+  done
+  die "'$*' failed twice; run 'omnemo-os uninstall' to undo what was applied"
+}
+
 # --- install ----------------------------------------------------------------
 cmd_install() {
   local allow_rc=0
@@ -157,8 +177,8 @@ cmd_install() {
   local ts; ts="$(date -u +%Y%m%dT%H%M%SZ)"
   local bk="$OUR_STATE/backup/$ts"; mkdir -p "$bk" "$PLUGIN_DST"
   cp -p "$SHELL_JSON" "$bk/shell.json"
-  # `omarchy hyprland workspace layout` writes default.lua AND pins every
-  # workspace that has windows (2.lua ...), so the whole dir is the unit.
+  # `layout default floating` also pins each busy workspace to its current mode
+  # in this directory, so the whole directory is backed up and restored.
   local ws_was="absent"
   if [[ -d "$WS_DIR" ]]; then cp -a "$WS_DIR" "$bk/workspace-layouts"; ws_was="present"; fi
   local hypr_was="absent"
@@ -182,14 +202,22 @@ cmd_install() {
     cp -p "$LOOK_LUA" "$bk/looknfeel.lua"; look_was="present"
   fi
   say "backed up to $bk"
+  # Record the install before changing anything, so a run that dies partway
+  # can still be undone with 'omnemo-os uninstall'.
+  jq -n --arg ts "$ts" --arg bk "$bk" --arg ws "$ws_was" --arg hy "$hypr_was" --arg v "$VERSION" \
+     --arg me "$menu_was" --arg bi "$bind_was" --arg lo "$look_was" \
+     --arg sha "$(sha256sum "$bk/shell.json" | cut -d' ' -f1)" \
+     --argjson plugins "$(printf '%s\n' "${PLUGINS[@]}" | jq -R . | jq -s .)" \
+     '{installed_at:$ts, edition_version:$v, backup_dir:$bk, shell_json_sha256:$sha, workspace_layouts_was:$ws, hyprland_lua_was:$hy, menu_jsonc_was:$me, bindings_lua_was:$bi, looknfeel_lua_was:$lo, plugins:$plugins}' \
+     >"$RECORD"
 
   for p in "${PLUGINS[@]}"; do cp -r "$PLUGIN_SRC/$p" "$PLUGIN_DST/$p"; done
   say "plugins installed: ${PLUGINS[*]}"
 
   # MANIFEST §2. Commands first (they may rewrite shell.json), layout last.
-  omarchy bar position bottom
-  omarchy plugin disable omarchy.dock   # MANIFEST §2: stock dock off; .dock.pinned stays for guy.favorites
-  omarchy hyprland workspace layout default floating
+  shell_step omarchy bar position bottom
+  shell_step omarchy plugin disable omarchy.dock   # MANIFEST §2: stock dock off; .dock.pinned stays for guy.favorites
+  shell_step omarchy hyprland workspace layout default floating
   local tmp; tmp="$(mktemp)"
   jq --slurpfile L "$LAYOUT_JSON" '.bar.layout = $L[0]' "$SHELL_JSON" >"$tmp" && mv "$tmp" "$SHELL_JSON"
   say "bar layout written"
@@ -212,12 +240,6 @@ cmd_install() {
   hyprctl reload >/dev/null 2>&1 || true
   say "Apps menu entry, Super+Alt+Space and cursor rule written"
 
-  jq -n --arg ts "$ts" --arg bk "$bk" --arg ws "$ws_was" --arg hy "$hypr_was" --arg v "$VERSION" \
-     --arg me "$menu_was" --arg bi "$bind_was" --arg lo "$look_was" \
-     --arg sha "$(sha256sum "$bk/shell.json" | cut -d' ' -f1)" \
-     --argjson plugins "$(printf '%s\n' "${PLUGINS[@]}" | jq -R . | jq -s .)" \
-     '{installed_at:$ts, edition_version:$v, backup_dir:$bk, shell_json_sha256:$sha, workspace_layouts_was:$ws, hyprland_lua_was:$hy, menu_jsonc_was:$me, bindings_lua_was:$bi, looknfeel_lua_was:$lo, plugins:$plugins}' \
-     >"$RECORD"
   omarchy restart shell
   say "installed. Undo: omnemo-os uninstall"
 }
@@ -226,7 +248,7 @@ cmd_install() {
 cmd_uninstall() {
   need omarchy; need jq
   [[ -f "$RECORD" ]] || die "not installed (no $RECORD)"
-  local bk ws_was hypr_was; bk="$(jq -r .backup_dir "$RECORD")"; ws_was="$(jq -r '.workspace_layouts_was // "untouched"' "$RECORD")"; hypr_was="$(jq -r '.hyprland_lua_was // "absent"' "$RECORD")"
+  local bk ws_was hypr_was; bk="$(jq -r .backup_dir "$RECORD")"; ws_was="$(jq -r '.workspace_layouts_was // .default_lua_was' "$RECORD")"; hypr_was="$(jq -r '.hyprland_lua_was // "absent"' "$RECORD")"
   local menu_was bind_was look_was
   menu_was="$(jq -r '.menu_jsonc_was // "untouched"' "$RECORD")"; bind_was="$(jq -r '.bindings_lua_was // "untouched"' "$RECORD")"; look_was="$(jq -r '.looknfeel_lua_was // "untouched"' "$RECORD")"
   [[ -f "$bk/shell.json" ]] || die "backup missing: $bk/shell.json; refusing to guess"
@@ -235,9 +257,9 @@ cmd_uninstall() {
 
   cp -p "$bk/shell.json" "$SHELL_JSON"   # also re-enables omarchy.dock: disabledPlugins lives in shell.json
   case "$ws_was" in
-    present) find "${WS_DIR:?}" -mindepth 1 -delete; cp -a "$bk/workspace-layouts/." "$WS_DIR/" ;;
+    present) [[ -d "$bk/workspace-layouts" ]] || die "backup missing: $bk/workspace-layouts; refusing to guess"
+             rm -rf "${WS_DIR:?}"; cp -a "$bk/workspace-layouts" "$WS_DIR" ;;
     absent)  rm -rf "${WS_DIR:?}" ;;
-    untouched) rm -f "$WS_DIR/default.lua" ;;   # record from a 0.1 install: best effort
   esac
   case "$hypr_was" in
     present) cp -p "$bk/hyprland.lua" "$HYPR_LUA" ;;          # byte-exact stock user file
@@ -257,9 +279,7 @@ cmd_uninstall() {
     present) cp -p "$bk/looknfeel.lua" "$LOOK_LUA" ;;
     absent)  [[ -f "$LOOK_LUA" ]] && { windowrule_remove "$LOOK_LUA"; [[ -s "$LOOK_LUA" ]] || rm -f "$LOOK_LUA"; } ;;
   esac
-  hyprctl reload >/dev/null 2>&1 || true
-  # No `layout default dwindle` here: it would rewrite default.lua that the
-  # restore above just put back (or removed). hyprctl reload picks up the files.
+  hyprctl reload >/dev/null 2>&1 || true   # also re-reads the restored workspace layouts
   local p
   while IFS= read -r p; do
     [[ -n "$p" && -d "$PLUGIN_DST/$p" ]] && rm -rf "${PLUGIN_DST:?}/$p"

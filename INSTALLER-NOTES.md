@@ -19,7 +19,9 @@ Install, clicks (taskbar left/right, Favorites, Apps, Super+Alt+Space, Browsers,
 1. The 'already carries an omnemo-os block' guards were dead: `grep -qxF "$RULE_BEGIN"` with a marker starting in `--` made grep read it as an option (exit 2, `&& die` never fired). Now `grep -qxF -e`.
 2. The windowrule is computed before the bar moves, and on a stock box the bar is on TOP, so `reserved[3]` was 0 and max_h came out 30 px too tall. Now: bottom reservation, else top, else 30.
 3. workspace-layouts: `layout default floating` also pins workspaces (2.lua), and uninstall's `layout default dwindle` rewrote default.lua after the restore. Now the whole dir is backed up and restored.
-A second cold run on the fixed script is owed before the tag.
+4. (found in cold run #2) `omarchy plugin disable omarchy.dock` right after `omarchy bar position bottom` hit 'omarchy-shell is not responding' (the bar rebuild outlasted the shell's IPC timeout); `set -e` killed install HALF-APPLIED with no record, so uninstall refused and a re-run refused. Now every shell command goes through `shell_step` (wait for `omarchy-shell shell ping`, up to 30 s, then retry once; all three commands are idempotent), and `installed.json` is written right after the backup and BEFORE any change, so a run that dies partway is always undoable.
+
+Cold run #3 on the fixed script: install exit 0 with no grep noise, a re-install attempt refused correctly, uninstall exit 0, byte-diff PASS on all 12 entries including the workspace-layouts dir.
 
 ## Still owed
 - Rename plugins to one product namespace (`omnemo-os.*`).
