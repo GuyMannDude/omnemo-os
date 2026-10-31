@@ -1,6 +1,7 @@
 # Omnemo OS
 
-A user-friendly edition layered on stock [Omarchy](https://github.com/omacom/omarchy), with [Omnemo](https://github.com/GuyMannDude/omnemo) built in.
+A user-friendly edition layered on stock [Omarchy](https://github.com/omacom/omarchy), named for [Omnemo](https://github.com/GuyMannDude/omnemo), the memory for your AI helpers.
+This preview does not install Omnemo yet; add it with Omnemo's own install guide, and a later release will bundle it.
 Not a fork: one command installs, one command returns the machine to exact stock.
 
 **Status: v0.9 Public Preview.** It works on today's Omarchy 4.5 release candidate and will be called 1.0 once Omarchy 4.5 stable is out and the edition has survived a reboot and an `omarchy-update` on a stock machine. Expect rough edges, and tell us about them (see below).
