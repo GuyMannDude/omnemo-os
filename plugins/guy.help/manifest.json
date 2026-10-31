@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "guy.help",
+  "name": "Bar Help",
+  "version": "0.1.0",
+  "author": "Project Sparks",
+  "description": "A ? button that opens a card explaining what each bar icon does",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Bar Help",
+    "description": "Explains what each bar icon does",
+    "category": "System",
+    "allowMultiple": false
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "left": [
+    "omarchy.agents",
+    "guy.taskbar"
+  ],
+  "center": [
+    "guy.tools",
+    "guy.help",
+    "guy.favorites"
+  ],
+  "right": [
+    "omarchy.indicators",
+    "omarchy.elsewhen",
+    "omarchy.weather",
+    "omarchy.system-update",
+    "omarchy.keyboard-layout",
+    "omnemo.memory",
+    "omarchy.monitor",
+    "omarchy.audio",
+    "omarchy.network",
+    "omarchy.bluetooth",
+    "guy.clock",
+    "omarchy.power"
+  ],
+  "tray": []
+}

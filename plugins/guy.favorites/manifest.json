@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "guy.favorites",
+  "name": "Bar Favorites",
+  "version": "0.1.0",
+  "author": "Project Sparks",
+  "description": "A labeled Favorites button that pops up the apps pinned to the dock",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Bar Favorites",
+    "description": "The apps pinned to the dock, as a menu on the bar",
+    "category": "System",
+    "allowMultiple": false
+  }
+}

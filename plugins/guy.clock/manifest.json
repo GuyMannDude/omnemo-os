@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "guy.clock",
+  "name": "Clock Icon",
+  "version": "0.1.0",
+  "author": "Project Sparks",
+  "description": "A clock icon that saves bar space: hover for the day, date and time, click for the calendar",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Clock Icon",
+    "description": "Clock icon; hover for the time, click for the calendar",
+    "category": "Time",
+    "allowMultiple": false
+  }
+}

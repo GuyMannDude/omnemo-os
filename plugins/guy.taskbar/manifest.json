@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "guy.taskbar",
+  "name": "Taskbar",
+  "version": "0.1.0",
+  "author": "Project Sparks",
+  "description": "Windows-style taskbar inside the bar: pinned app buttons, then one icon per open window",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Taskbar",
+    "description": "Pinned apps and open windows, like the Windows taskbar",
+    "category": "System",
+    "allowMultiple": false
+  }
+}

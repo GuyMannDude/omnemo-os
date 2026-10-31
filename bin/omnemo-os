@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# omnemo-os — install / uninstall / status for the Omnemo OS edition layer.
+# DRAFT v0.1 (2026-10-27) written from MANIFEST.md; NOT YET RUN ON A BOX.
+# Contract: user-level only, no sudo, no stock file edits. install backs up every
+# file it will change; uninstall restores them byte-for-byte and removes only
+# what install created.
+set -euo pipefail
+
+VERSION="0.1.0-draft"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PLUGIN_SRC="$REPO_DIR/plugins"
+LAYOUT_JSON="$REPO_DIR/layout.json"
+
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}"
+SHELL_JSON="$CFG/omarchy/shell.json"
+PLUGIN_DST="$CFG/omarchy/plugins"
+WS_LUA="$STATE/omarchy/workspace-layouts/default.lua"
+HYPR_LUA="$CFG/hypr/hyprland.lua"
+OUR_STATE="$STATE/omnemo-os"
+RECORD="$OUR_STATE/installed.json"
+
+# Edition plugins (MANIFEST §1). omnemo.memory ships with Omnemo itself, not here.
+PLUGINS=(guy.taskbar guy.tools guy.help guy.favorites guy.clock)   # guy.start retired 10-27
+MIN_VERSION="4.5.0"
+
+die()  { printf 'omnemo-os: %s\n' "$*" >&2; exit 1; }
+say()  { printf 'omnemo-os: %s\n' "$*"; }
+need() { command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"; }
+
+# --- version gate -----------------------------------------------------------
+# Source of truth = the package (tested on the test laptop):
+#   pacman -Q omarchy      -> "omarchy 4.5.0rc2-1"   (stable box: "omarchy 4.5.0-1")
+#   vercmp "$v" 4.5.0-1    -> -1 for 4.5.0rc2-1, >=0 for 4.5.0-1 and later
+# TRAP: /usr/share/omarchy/version holds a stale "4.0.0.alpha"; never gate on it.
+# `omarchy version` may print "dev (<hash>)" on git checkouts; display only.
+MIN_PKGVER="4.5.0-1"
+omarchy_pkgver() { pacman -Q omarchy 2>/dev/null | awk '{print $2}'; }
+omarchy_version() { omarchy version 2>/dev/null || omarchy_pkgver; }
+
+check_version() {
+  local allow_rc="$1" v
+  need pacman; need vercmp
+  v="$(omarchy_pkgver)"; [[ -n "$v" ]] || die "omarchy package not installed (pacman -Q omarchy)"
+  if (( $(vercmp "$v" "$MIN_PKGVER") >= 0 )); then say "Omarchy $v OK (stable >= 4.5)"; return; fi
+  # Below 4.5.0-1: either a 4.5 pre-release (rc/beta/alpha of 4.5) or an older release.
+  if [[ "$v" == 4.5.0[a-z]* ]]; then
+    [[ "$allow_rc" == 1 ]] || die "Omarchy $v is a pre-release; the edition is gated on 4.5 stable (use --allow-rc to test)"
+    say "Omarchy $v OK (pre-release, --allow-rc)"; return
+  fi
+  die "Omarchy $v is below $MIN_PKGVER"
+}
+
+# --- Hyprland windowrule ------------------------------------------------------
+# New floating windows open centered and never larger than the screen above the
+# bar, so titlebar buttons stay reachable. max_size takes NUMBERS only, so it is
+# computed here from the focused monitor and written into the USER file
+# ~/.config/hypr/hyprland.lua as a marked block. Formula:
+#   max_w = width/scale - 2*gaps_out
+#   max_h = height/scale - reserved_bottom - 2*gaps_out - 2*border_size - 14 (titlebar headroom)
+RULE_BEGIN="-- omnemo-os:begin (managed; removed by omnemo-os uninstall)"
+RULE_END="-- omnemo-os:end"
+
+windowrule_block() {
+  need hyprctl
+  local mon w h scale rb gaps border maxw maxh
+  mon="$(hyprctl monitors -j | jq -c '[.[] | select(.focused==true)][0] // .[0]')"
+  [[ -n "$mon" && "$mon" != "null" ]] || die "hyprctl monitors returned no monitor"
+  w="$(jq -r .width <<<"$mon")"; h="$(jq -r .height <<<"$mon")"; scale="$(jq -r '.scale // 1' <<<"$mon")"
+  rb="$(jq -r '.reserved[3] // 0' <<<"$mon")"
+  gaps="$(hyprctl getoption general:gaps_out -j | jq -r '.custom // "10"' | awk '{print $1}')"
+  border="$(hyprctl getoption general:border_size -j | jq -r '.int // 2')"
+  maxw="$(awk -v w="$w" -v s="$scale" -v g="$gaps" 'BEGIN{printf "%d", w/s - 2*g}')"
+  maxh="$(awk -v h="$h" -v s="$scale" -v rb="$rb" -v g="$gaps" -v b="$border" 'BEGIN{printf "%d", h/s - rb - 2*g - 2*b - 14}')"
+  (( maxw > 200 && maxh > 200 )) || die "computed max_size ${maxw}x${maxh} looks wrong; refusing"
+  printf '%s\n' "$RULE_BEGIN" \
+    "-- Omnemo OS: a new floating window opens centered and never bigger than the" \
+    "-- screen above the bottom bar, so its titlebar buttons are always reachable." \
+    "-- Computed at install for ${w}x${h}@${scale} (gaps ${gaps}, border ${border}, bar ${rb})." \
+    "o.window({ float = true }, { center = true, max_size = { ${maxw}, ${maxh} } })" \
+    "$RULE_END"
+}
+
+windowrule_remove() {   # strip exactly our block from "$1" (in place)
+  local tmp; tmp="$(mktemp)"
+  awk -v b="$RULE_BEGIN" -v e="$RULE_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$1" >"$tmp" && mv "$tmp" "$1"
+}
+
+# --- install ----------------------------------------------------------------
+cmd_install() {
+  local allow_rc=0
+  [[ "${1:-}" == "--allow-rc" ]] && allow_rc=1
+  need omarchy; need jq
+  [[ -r "$LAYOUT_JSON" ]] || die "missing $LAYOUT_JSON"
+  [[ -f "$SHELL_JSON" ]]  || die "no $SHELL_JSON; is this an Omarchy box?"
+  [[ -f "$RECORD" ]] && die "already installed ($RECORD exists); run 'omnemo-os uninstall' first"
+  check_version "$allow_rc"
+
+  # All refusals BEFORE any change: never leave a half-applied edition.
+  local p
+  for p in "${PLUGINS[@]}"; do
+    [[ -d "$PLUGIN_SRC/$p" ]] || die "plugin source missing: $PLUGIN_SRC/$p"
+    [[ -e "$PLUGIN_DST/$p" ]] && die "$PLUGIN_DST/$p already exists and is not ours; refusing (exact-stock promise)"
+  done
+
+  local ts; ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  local bk="$OUR_STATE/backup/$ts"; mkdir -p "$bk" "$PLUGIN_DST"
+  cp -p "$SHELL_JSON" "$bk/shell.json"
+  local ws_was="absent"
+  if [[ -f "$WS_LUA" ]]; then cp -p "$WS_LUA" "$bk/default.lua"; ws_was="present"; fi
+  local hypr_was="absent"
+  if [[ -f "$HYPR_LUA" ]]; then
+    grep -qxF "$RULE_BEGIN" "$HYPR_LUA" && die "$HYPR_LUA already carries an omnemo-os block; refusing"
+    cp -p "$HYPR_LUA" "$bk/hyprland.lua"; hypr_was="present"
+  fi
+  local rule; rule="$(windowrule_block)"   # computed BEFORE any change so a failure here changes nothing
+  say "backed up to $bk"
+
+  for p in "${PLUGINS[@]}"; do cp -r "$PLUGIN_SRC/$p" "$PLUGIN_DST/$p"; done
+  say "plugins installed: ${PLUGINS[*]}"
+
+  # MANIFEST §2. Commands first (they may rewrite shell.json), layout last.
+  omarchy bar position bottom
+  omarchy dock position bottom
+  omarchy dock autohide on
+  omarchy hyprland workspace layout default floating
+  local tmp; tmp="$(mktemp)"
+  jq --slurpfile L "$LAYOUT_JSON" '.bar.layout = $L[0]' "$SHELL_JSON" >"$tmp" && mv "$tmp" "$SHELL_JSON"
+  say "bar layout written"
+
+  mkdir -p "$(dirname "$HYPR_LUA")"
+  [[ -f "$HYPR_LUA" ]] || : >"$HYPR_LUA"
+  printf '\n%s\n' "$rule" >>"$HYPR_LUA"
+  hyprctl reload >/dev/null 2>&1 || true
+  say "windowrule written to $HYPR_LUA"
+
+  jq -n --arg ts "$ts" --arg bk "$bk" --arg ws "$ws_was" --arg hy "$hypr_was" --arg v "$VERSION" \
+     --arg sha "$(sha256sum "$bk/shell.json" | cut -d' ' -f1)" \
+     --argjson plugins "$(printf '%s\n' "${PLUGINS[@]}" | jq -R . | jq -s .)" \
+     '{installed_at:$ts, edition_version:$v, backup_dir:$bk, shell_json_sha256:$sha, default_lua_was:$ws, hyprland_lua_was:$hy, plugins:$plugins}' \
+     >"$RECORD"
+  omarchy restart shell
+  say "installed. Undo: omnemo-os uninstall"
+}
+
+# --- uninstall --------------------------------------------------------------
+cmd_uninstall() {
+  need omarchy; need jq
+  [[ -f "$RECORD" ]] || die "not installed (no $RECORD)"
+  local bk ws_was hypr_was; bk="$(jq -r .backup_dir "$RECORD")"; ws_was="$(jq -r .default_lua_was "$RECORD")"; hypr_was="$(jq -r '.hyprland_lua_was // "absent"' "$RECORD")"
+  [[ -f "$bk/shell.json" ]] || die "backup missing: $bk/shell.json; refusing to guess"
+  local want have; want="$(jq -r .shell_json_sha256 "$RECORD")"; have="$(sha256sum "$bk/shell.json" | cut -d' ' -f1)"
+  [[ "$want" == "$have" ]] || die "backup checksum mismatch; refusing to restore a tampered file"
+
+  cp -p "$bk/shell.json" "$SHELL_JSON"
+  case "$ws_was" in
+    present) cp -p "$bk/default.lua" "$WS_LUA" ;;
+    absent)  rm -f "$WS_LUA" ;;
+  esac
+  case "$hypr_was" in
+    present) cp -p "$bk/hyprland.lua" "$HYPR_LUA" ;;          # byte-exact stock user file
+    absent)  [[ -f "$HYPR_LUA" ]] && { windowrule_remove "$HYPR_LUA"; [[ -s "$HYPR_LUA" ]] || rm -f "$HYPR_LUA"; } ;;
+  esac
+  hyprctl reload >/dev/null 2>&1 || true
+  # Reverse the one §2 command whose effect may live outside shell.json.
+  omarchy hyprland workspace layout default dwindle || true
+  local p
+  while IFS= read -r p; do
+    [[ -n "$p" && -d "$PLUGIN_DST/$p" ]] && rm -rf "${PLUGIN_DST:?}/$p"
+  done < <(jq -r '.plugins[]' "$RECORD")
+  mv "$RECORD" "$OUR_STATE/uninstalled-$(date -u +%Y%m%dT%H%M%SZ).json"
+  omarchy restart shell
+  say "restored to stock (shell.json byte-exact from $bk)"
+}
+
+cmd_status() {
+  if [[ -f "$RECORD" ]]; then say "installed:"; jq . "$RECORD"; else say "not installed"; fi
+  local v; v="$(omarchy_version 2>/dev/null)" || v=unknown; say "omarchy: $v"
+}
+
+sub="${1:-}"; case "$(basename "$0")" in omnemo-os-install) sub=install; set -- "$@" ;; omnemo-os-uninstall) sub=uninstall ;; esac
+case "$sub" in
+  install)   [[ "${1:-}" == install ]] && shift; cmd_install "$@" ;;
+  uninstall) cmd_uninstall ;;
+  status)    cmd_status ;;
+  *) printf 'usage: omnemo-os install [--allow-rc] | uninstall | status\n'; exit 2 ;;
+esac

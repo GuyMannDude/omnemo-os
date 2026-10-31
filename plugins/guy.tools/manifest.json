@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "guy.tools",
+  "name": "Bar Tools",
+  "version": "0.1.0",
+  "author": "Project Sparks",
+  "description": "A labeled Tools button that pops up handy tools: calculator, screenshot, screen recording and more",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Bar Tools",
+    "description": "Calculator, screenshot, screen recording, color picker, emoji, clipboard, shortcuts",
+    "category": "System",
+    "allowMultiple": false
+  }
+}
