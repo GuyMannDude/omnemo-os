@@ -27,6 +27,8 @@ bin/omnemo-os install --allow-rc
 
 `--allow-rc` is only needed while 4.5 is a test version. Afterwards, from any Terminal: `omnemo-os status` shows what is installed and flags anything an Omarchy update reset; `omnemo-os repair` puts it back; `omnemo-os uninstall` puts everything back exactly as it was.
 
+Your memories are yours. If Omnemo was already on this computer, the install asks whether to keep your memories (the default) or start fresh. Uninstall asks the same question; keeping them is the default, and if you choose to delete, it saves a copy in your home folder first and tells you where.
+
 ## Share your ideas
 
 Omnemo OS is brand new, and it's being shaped by the people who use it. You don't need to be a programmer to help. If something is confusing, annoying, or missing, we want to hear it.
