@@ -3,8 +3,8 @@
 `MANIFEST.md` describes the edition as built and tested on the test laptop. This file holds the installer-side facts.
 
 ## shell.json keys the edition writes (installer source of truth = `layout.json` + MANIFEST §2)
-`bar.position` = bottom · `bar.layout` = `layout.json` · `dock.autohide` = true · `dock.position` = bottom.
-Untouched: `bar.transparent`, `plugins` (empty list; plugins load from folder + layout), `idle`, `version`.
+`bar.position` = bottom · `bar.layout` = `layout.json` · `disabledPlugins` = `["omarchy.dock"]` (via `omarchy plugin disable omarchy.dock`; the byte-exact shell.json restore on uninstall re-enables it).
+Untouched: `bar.transparent`, `plugins` (empty list; plugins load from folder + layout), `dock` (pinned list stays for guy.favorites), `idle`, `version`.
 
 ## Outside shell.json
 - `~/.local/state/omarchy/workspace-layouts/default.lua` ← `omarchy hyprland workspace layout default floating`; uninstall restores the backup (or removes the file if it was absent) and runs `... default dwindle`.

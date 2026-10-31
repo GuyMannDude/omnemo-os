@@ -121,8 +121,7 @@ cmd_install() {
 
   # MANIFEST §2. Commands first (they may rewrite shell.json), layout last.
   omarchy bar position bottom
-  omarchy dock position bottom
-  omarchy dock autohide on
+  omarchy plugin disable omarchy.dock   # MANIFEST §2: stock dock off; .dock.pinned stays for guy.favorites
   omarchy hyprland workspace layout default floating
   local tmp; tmp="$(mktemp)"
   jq --slurpfile L "$LAYOUT_JSON" '.bar.layout = $L[0]' "$SHELL_JSON" >"$tmp" && mv "$tmp" "$SHELL_JSON"
@@ -152,7 +151,7 @@ cmd_uninstall() {
   local want have; want="$(jq -r .shell_json_sha256 "$RECORD")"; have="$(sha256sum "$bk/shell.json" | cut -d' ' -f1)"
   [[ "$want" == "$have" ]] || die "backup checksum mismatch; refusing to restore a tampered file"
 
-  cp -p "$bk/shell.json" "$SHELL_JSON"
+  cp -p "$bk/shell.json" "$SHELL_JSON"   # also re-enables omarchy.dock: disabledPlugins lives in shell.json
   case "$ws_was" in
     present) cp -p "$bk/default.lua" "$WS_LUA" ;;
     absent)  rm -f "$WS_LUA" ;;
