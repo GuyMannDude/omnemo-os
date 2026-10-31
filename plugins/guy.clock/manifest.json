@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "guy.clock",
   "name": "Clock Icon",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "author": "Project Sparks",
   "description": "A clock icon that saves bar space: hover for the day, date and time, click for the calendar",
   "kinds": [

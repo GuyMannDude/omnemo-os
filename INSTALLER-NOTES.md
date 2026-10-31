@@ -7,13 +7,19 @@
 Untouched: `bar.transparent`, `plugins` (empty list; plugins load from folder + layout), `dock` (pinned list stays for guy.favorites), `idle`, `version`.
 
 ## Outside shell.json
-- `~/.local/state/omarchy/workspace-layouts/default.lua` ← `omarchy hyprland workspace layout default floating`; uninstall restores the backup (or removes the file if it was absent) and runs `... default dwindle`.
+- `~/.local/state/omarchy/workspace-layouts/` (whole dir) ← `omarchy hyprland workspace layout default floating` writes default.lua and pins every workspace that has windows (2.lua …); uninstall restores the dir byte-exact from the backup (or removes it if it was absent). No `... default dwindle` on uninstall: it rewrites default.lua after the restore.
 - `~/.config/hypr/hyprland.lua` (user file, stock) ← marked block `-- omnemo-os:begin … -- omnemo-os:end` with `o.window({ float = true }, { center = true, max_size = { W, H } })`; W/H computed at install from `hyprctl monitors -j` + `getoption general:gaps_out` / `general:border_size` (MANIFEST §2 formula; a 1366×768 laptop → 1346×700). Uninstall restores the backup byte-exact (or strips the block if the file was created by us).
 
 - `~/.config/omarchy/extensions/omarchy-menu.jsonc` (user file, seeded once by Omarchy) ← marked block (`// omnemo-os:begin … // omnemo-os:end`) with the `apps` entry, inserted before the final `}`; seeded from `/usr/share/omarchy/config/omarchy/extensions/omarchy-menu.jsonc` when absent; refuses if `"apps"` is already defined. Uninstall restores the backup byte-exact (or removes the file if it was absent), then `omarchy-menu refresh`.
 - `~/.config/hypr/bindings.lua` + `~/.config/hypr/looknfeel.lua` (user files, stock-seeded) ← the same `-- omnemo-os:begin/end` block pattern as hyprland.lua: Super+Alt+Space → `omarchy-menu toggle apps`; `cursor.no_warps = true`. Uninstall restores the backups byte-exact.
 - Hot reload trap: plugin edits only load after `omarchy-restart-shell`; the installer already restarts the shell last.
 
-## Still owed before packaging
-- Rename plugins to one product namespace (`omnemo-os.*`) and bump versions.
-- Run install/uninstall for real on the test laptop (`--allow-rc`), then `git diff` the stock files to prove byte-exact restore.
+## Cold run 2026-10-30 (stock Omarchy 4.5.0rc2 laptop, `--allow-rc`)
+Install, clicks (taskbar left/right, Favorites, Apps, Super+Alt+Space, Browsers, cursor), uninstall, sha256 diff of every touched path. Everything byte-exact or absent-as-before except three findings, fixed in v0.9:
+1. The 'already carries an omnemo-os block' guards were dead: `grep -qxF "$RULE_BEGIN"` with a marker starting in `--` made grep read it as an option (exit 2, `&& die` never fired). Now `grep -qxF -e`.
+2. The windowrule is computed before the bar moves, and on a stock box the bar is on TOP, so `reserved[3]` was 0 and max_h came out 30 px too tall. Now: bottom reservation, else top, else 30.
+3. workspace-layouts: `layout default floating` also pins workspaces (2.lua), and uninstall's `layout default dwindle` rewrote default.lua after the restore. Now the whole dir is backed up and restored.
+A second cold run on the fixed script is owed before the tag.
+
+## Still owed
+- Rename plugins to one product namespace (`omnemo-os.*`).

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "guy.help",
   "name": "Bar Help",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "author": "Project Sparks",
   "description": "A ? button that opens a card explaining what each bar icon does",
   "kinds": [
