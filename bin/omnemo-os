@@ -31,6 +31,9 @@ MIN_VERSION="4.5.0"
 
 die()  { printf 'omnemo-os: %s\n' "$*" >&2; exit 1; }
 say()  { printf 'omnemo-os: %s\n' "$*"; }
+# Move a temp file over a target, keeping the target's mode (mktemp makes 600;
+# stock user files are 644). A new file gets 644.
+put() { if [[ -e $2 ]]; then chmod --reference="$2" "$1"; else chmod 644 "$1"; fi; mv "$1" "$2"; }
 need() { command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"; }
 
 # --- version gate -----------------------------------------------------------
@@ -90,7 +93,7 @@ windowrule_block() {
 
 windowrule_remove() {   # strip exactly our block from "$1" (in place)
   local tmp; tmp="$(mktemp)"
-  awk -v b="$RULE_BEGIN" -v e="$RULE_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$1" >"$tmp" && mv "$tmp" "$1"
+  awk -v b="$RULE_BEGIN" -v e="$RULE_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$1" >"$tmp" && put "$tmp" "$1"
 }
 
 # --- three more user files (MANIFEST §2 rows: Apps menu, Apps shortcut, cursor) --
@@ -130,11 +133,11 @@ menu_insert() {   # "$1" = file (in place)
       if (!last) exit 3
       for (i=1; i<=NR; i++) { if (i==last) print blk; print L[i] }
     }' "$1" >"$tmp" || { rm -f "$tmp"; die "$1 has no closing brace; refusing"; }
-  mv "$tmp" "$1"
+  put "$tmp" "$1"
 }
 menu_remove() {   # strip exactly our block from "$1" (in place)
   local tmp; tmp="$(mktemp)"
-  awk -v b="  $MENU_BEGIN" -v e="  $MENU_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$1" >"$tmp" && mv "$tmp" "$1"
+  awk -v b="  $MENU_BEGIN" -v e="  $MENU_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$1" >"$tmp" && put "$tmp" "$1"
 }
 
 # The shell rebuilds the bar after some of these commands and can miss the
@@ -170,7 +173,7 @@ GUARD="$HOME/.local/bin/omnemo-one-bar"
 MIMEAPPS="$CFG/mimeapps.list"
 NAME_MARK="# omnemo-os: friendly name (omnemo-os repair puts it back)"
 # Omarchy's white and vantablack themes name these icon sets; neither is
-# installed, so app icons vanish in those themes. (Reported upstream.)
+# installed, so app icons vanish in those themes. (upstream report pending)
 ICON_SHIMS=(Yaru-gray Yaru-grey)
 # desktop id | friendly name | plain description
 FRIENDLY_NAMES=(
@@ -211,7 +214,7 @@ restore_managed() {   # "$1" = backup dir
 # ~/.local/share/applications wins over the system one; an Omarchy migration
 # can copy foot.desktop back over it, which `status` spots and `repair` fixes.
 apply_friendly_names() {
-  local entry id name comment src target tmp
+  local entry id name comment src target tmp saved
   mkdir -p "$APPS_DIR"
   for entry in "${FRIENDLY_NAMES[@]}"; do
     IFS='|' read -r id name comment <<<"$entry"
@@ -230,7 +233,15 @@ apply_friendly_names() {
       main && /^Comment=/ && !c { print "Comment=" comment; c = 1; next }
       { print }' "$src" >"$tmp"
     printf '%s\n' "$NAME_MARK" >>"$tmp"
-    mv "$tmp" "$target"
+    # An unmarked copy in ~/.local/share/applications may hold the user's own
+    # edits; keep it before we replace it.
+    if [[ $src == "$target" ]] &&
+       ! cmp -s "$target" "/usr/share/omarchy/applications/$id.desktop" &&
+       ! cmp -s "$target" "/usr/share/applications/$id.desktop"; then
+      saved="$OUR_STATE/replaced/$(date -u +%Y%m%dT%H%M%SZ)"
+      mkdir -p "$saved" && cp -p "$target" "$saved/" && say "kept your old $id.desktop in $saved"
+    fi
+    put "$tmp" "$target"
   done
   update-desktop-database "$APPS_DIR" >/dev/null 2>&1 || true
 }
@@ -297,7 +308,10 @@ cmd_install() {
   for f in omnemo-one-bar omnemo-one-bar.service omnemo-one-bar.timer; do
     [[ -f "$SYSTEM_SRC/$f" ]] || die "missing $SYSTEM_SRC/$f"
   done
-  [[ -e "$UNITS_DIR/omnemo-one-bar.timer" ]] && die "$UNITS_DIR/omnemo-one-bar.timer already exists and is not ours; refusing"
+  # One rule for every guard file: if any is already there, it is not ours.
+  for f in "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer"; do
+    [[ -e $f || -L $f ]] && die "$f already exists and is not ours; refusing (exact-stock promise)"
+  done
 
   local ts; ts="$(date -u +%Y%m%dT%H%M%SZ)"
   local bk="$OUR_STATE/backup/$ts"; mkdir -p "$bk" "$PLUGIN_DST"
@@ -345,7 +359,7 @@ cmd_install() {
   shell_step omarchy plugin disable omarchy.dock   # MANIFEST §2: stock dock off; .dock.pinned stays for guy.favorites
   shell_step omarchy hyprland workspace layout default floating
   local tmp; tmp="$(mktemp)"
-  jq --slurpfile L "$LAYOUT_JSON" '.bar.layout = $L[0]' "$SHELL_JSON" >"$tmp" && mv "$tmp" "$SHELL_JSON"
+  jq --slurpfile L "$LAYOUT_JSON" '.bar.layout = $L[0]' "$SHELL_JSON" >"$tmp" && put "$tmp" "$SHELL_JSON"
   say "bar layout written"
 
   mkdir -p "$(dirname "$HYPR_LUA")"
