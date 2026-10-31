@@ -43,13 +43,34 @@ BarWidget {
     { glyph: String.fromCodePoint(0xf00ed), label: "Calendar",  command: root.panel("guy.clock") }
   ]
 
+  // None of the AI helpers come with Omarchy. Claude and ChatGPT open their
+  // installed app when there is one and their website otherwise; the coding
+  // tools (Codex, OpenCode) only show up once they are installed.
+  property var aiCommands: []
+
+  Process {
+    id: findAi
+    command: ["sh", "-c", "for c in claude codex opencode; do command -v \"$c\" >/dev/null 2>&1 && echo \"$c\"; done"]
+    running: true
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.aiCommands = String(text || "").split("\n").filter(function(l) { return l.length > 0 })
+    }
+  }
+
   // The OpenAI logo lives in the omarchy font, the same glyph Omarchy's menu uses.
-  readonly property var aiItems: [
-    { glyph: String.fromCodePoint(0xf018d), label: "Claude",   command: "xdg-terminal-exec claude" },
-    { glyph: "", glyphFont: "omarchy", label: "ChatGPT", command: "uwsm-app -- chatgpt" },
-    { glyph: String.fromCodePoint(0xf0169), label: "Codex",    command: "xdg-terminal-exec codex" },
-    { glyph: String.fromCodePoint(0xf018d), label: "OpenCode", command: "xdg-terminal-exec opencode" }
-  ]
+  readonly property var aiItems: {
+    var appsRevision = DesktopEntries.applications.values.length
+    var has = function(c) { return root.aiCommands.indexOf(c) !== -1 }
+    var out = []
+    out.push({ glyph: String.fromCodePoint(0xf018d), label: "Claude",
+               command: has("claude") ? "xdg-terminal-exec claude" : "omarchy-launch-webapp https://claude.ai/" })
+    out.push({ glyph: "", glyphFont: "omarchy", label: "ChatGPT",
+               command: DesktopEntries.byId("chatgpt") ? "uwsm-app -- chatgpt" : "omarchy-launch-webapp https://chatgpt.com/" })
+    if (has("codex")) out.push({ glyph: String.fromCodePoint(0xf0169), label: "Codex", command: "xdg-terminal-exec codex" })
+    if (has("opencode")) out.push({ glyph: String.fromCodePoint(0xf018d), label: "OpenCode", command: "xdg-terminal-exec opencode" })
+    return out
+  }
 
   // Installed apps for a category, from the desktop entries: browsers by their
   // WebBrowser category, web apps by the Omarchy web app launcher they run.
@@ -83,6 +104,7 @@ BarWidget {
       root.run(button.command)
       return
     }
+    if (button.label === "AI" && !findAi.running) findAi.running = true
     var items = root.groupItems(button)
     if (items.length === 1) {
       root.close()
@@ -151,6 +173,51 @@ BarWidget {
 
   function refresh() {
     if (!listWindows.running) listWindows.running = true
+    root.measureRoom()
+  }
+
+  // Window icons stop before the next widget on the bar (the menus in the
+  // middle); the windows that don't fit sit behind a "+N" button.
+  readonly property int windowSlot: Style.bar.iconSlot + Style.space(4)
+  property int slotsThatFit: 999
+
+  function measureRoom() {
+    try {
+      var top = root
+      while (top.parent) top = top.parent
+      var start = separator.mapToItem(top, separator.width, 0).x
+      var limit = top.width
+      var stack = [top]
+      while (stack.length > 0) {
+        var item = stack.pop()
+        if (item !== root && item.moduleName !== undefined && item.moduleName !== "" && item.visible && item.width > 0) {
+          var x = item.mapToItem(top, 0, 0).x
+          if (x > start && x < limit) limit = x
+          continue
+        }
+        var kids = item.children || []
+        for (var i = 0; i < kids.length; i++) stack.push(kids[i])
+      }
+      var fit = Math.floor((limit - start - Style.space(12)) / root.windowSlot)
+      if (fit !== root.slotsThatFit) root.slotsThatFit = Math.max(1, fit)
+    } catch (e) {}
+  }
+
+  // The windows shown on the bar, in the order they were opened; the one in
+  // front always stays visible.
+  readonly property var shownWindows: {
+    var all = root.windows
+    if (all.length <= root.slotsThatFit) return all
+    var n = Math.max(0, root.slotsThatFit - 1)
+    var shown = all.slice(0, n)
+    for (var i = n; i < all.length; i++) {
+      if (all[i].activated && n > 0) { shown[n - 1] = all[i]; break }
+    }
+    return shown
+  }
+  readonly property var hiddenWindows: {
+    var shown = root.shownWindows.map(function(w) { return w.address })
+    return root.windows.filter(function(w) { return shown.indexOf(w.address) === -1 })
   }
 
   Timer {
@@ -216,7 +283,7 @@ BarWidget {
     var name = root.appName(w)
     var label = title.length > 0 ? name + ": " + title : name
     if (w.minimized) label += "  (minimized, click to bring back)"
-    return label + "  · right-click for Close"
+    return label + "  · right-click for more"
   }
 
   // The right-click menu: which window it is for and the icon it sits on.
@@ -224,6 +291,7 @@ BarWidget {
   property Item menuTile: null
 
   function openMenu(tile, w) {
+    if (!readPins.running) readPins.running = true
     menuTile = null
     menuFor = w
     Qt.callLater(function() { root.menuTile = tile })
@@ -233,10 +301,47 @@ BarWidget {
     menuFor = null
   }
   // Act on the window first, then close the menu.
+  // The app's desktop entry id, which is what Favorites keeps; empty when the
+  // window belongs to nothing launchable.
+  function favoriteId(w) {
+    var entry = w ? DesktopEntries.heuristicLookup(String(w.appId || "")) : null
+    return entry && entry.id ? String(entry.id) : ""
+  }
+
+  // The apps in Favorites, read fresh each time a right-click menu opens, so
+  // the menu offers to add an app or to take it out.
+  property var pinnedIds: []
+
+  Process {
+    id: readPins
+    command: ["omarchy", "dock", "pinned"]
+    running: true
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.pinnedIds = String(text || "").split("\n").map(function(l) { return l.trim() }).filter(function(l) { return l.length > 0 })
+    }
+  }
+
+  function menuRows(w) {
+    if (w === null) return []
+    var rows = [
+      { text: w.minimized ? "Restore" : "Minimize", action: "minimize" },
+      { text: "Close window", action: "close" }
+    ]
+    var id = root.favoriteId(w)
+    if (id !== "") {
+      var pinned = root.pinnedIds.indexOf(id) !== -1
+      rows.splice(1, 0, pinned ? { text: "Remove from Favorites", action: "unfavorite" } : { text: "Add to Favorites", action: "favorite" })
+    }
+    return rows
+  }
+
   function menuAction(action) {
     var w = root.menuFor
     if (w) {
-      if (action === "close") root.closeWindow(w.address)
+      if (action === "favorite") root.run(["omarchy", "dock", "pin", root.favoriteId(w)])
+      else if (action === "unfavorite") root.run(["omarchy", "dock", "unpin", root.favoriteId(w)])
+      else if (action === "close") root.closeWindow(w.address)
       else if (w.minimized) root.restoreWindow(w.address)
       else root.minimizeWindow(w.address)
     }
@@ -265,7 +370,8 @@ BarWidget {
 
     // A thin line between the buttons and the open windows.
     Item {
-      visible: windowRepeater.count > 0
+      id: separator
+      visible: root.windows.length > 0
       width: Style.space(9)
       height: parent.height
       Rectangle {
@@ -278,7 +384,7 @@ BarWidget {
 
     Repeater {
       id: windowRepeater
-      model: root.windows
+      model: root.shownWindows
 
       delegate: WidgetButton {
         id: windowTile
@@ -313,6 +419,33 @@ BarWidget {
         }
       }
     }
+
+    WidgetButton {
+      id: moreWindows
+      visible: root.hiddenWindows.length > 0
+      bar: root.bar
+      text: "+" + root.hiddenWindows.length
+      fixedWidth: root.windowSlot
+      active: root.flyoutOpen && root.flyoutTile === moreWindows
+      useActiveColor: false
+      tooltipText: root.flyoutOpen && root.flyoutTile === moreWindows ? "" : root.hiddenWindows.length + " more open windows: click to see them"
+      onPressed: function(b) {
+        if (b !== Qt.LeftButton) return
+        if (root.flyoutOpen && root.flyoutTile === moreWindows) { root.close(); return }
+        root.flyoutItems = root.hiddenWindows.map(function(w) {
+          return { iconSource: root.windowIcon(w), label: root.appName(w) + (w.title ? ": " + w.title : ""), window: w }
+        })
+        root.flyoutTile = moreWindows
+        root.flyoutOpen = true
+      }
+    }
+  }
+
+  // A choice in a pop-up row: a hidden window comes forward, anything else opens.
+  function pickChoice(choice) {
+    root.close()
+    if (choice.window) root.windowClicked(choice.window)
+    else root.run(choice.command)
   }
 
   // A category's choices: a row of icons with names, popping up above the
@@ -348,16 +481,16 @@ BarWidget {
           color: choiceMouse.pressed ? Style.pressedFill : (choiceMouse.containsMouse ? Style.hoverFill : "transparent")
 
           IconImage {
-            visible: !!choice.modelData.entryIcon
+            visible: !!(choice.modelData.entryIcon || choice.modelData.iconSource)
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: Style.space(8)
             implicitSize: Style.space(30)
-            source: choice.modelData.entryIcon ? Quickshell.iconPath(choice.modelData.entryIcon, "application-x-executable") : ""
+            source: choice.modelData.iconSource || (choice.modelData.entryIcon ? Quickshell.iconPath(choice.modelData.entryIcon, "application-x-executable") : "")
           }
 
           Text {
-            visible: !choice.modelData.entryIcon
+            visible: !(choice.modelData.entryIcon || choice.modelData.iconSource)
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: Style.space(8)
@@ -391,10 +524,7 @@ BarWidget {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: {
-              root.close()
-              root.run(choice.modelData.command)
-            }
+            onClicked: root.pickChoice(choice.modelData)
           }
         }
       }
@@ -425,10 +555,7 @@ BarWidget {
       Keys.onEscapePressed: function(event) { root.closeMenu(); event.accepted = true }
 
       Repeater {
-        model: root.menuFor === null ? [] : [
-          { text: root.menuFor.minimized ? "Restore" : "Minimize", action: "minimize" },
-          { text: "Close window", action: "close" }
-        ]
+        model: root.menuRows(root.menuFor)
 
         delegate: Rectangle {
           id: menuRow

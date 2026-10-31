@@ -21,18 +21,18 @@ BarWidget {
     { icon: glyph(0xf06a9), name: "AI meter (robot)", what: "Next to the brain: how much of each AI plan you've used, like a fuel gauge" },
     { icon: glyph(0xf003b), name: "Pinned buttons",  what: "AI (brain), Browsers and Web apps pop up a row of choices: click one to open it. Files and Apps open straight away; Settings opens the full Omarchy menu" },
     { icon: glyph(0xf05b7), name: "Utils",           what: "Pops up Display, Sound, Network, Bluetooth and Calendar too, as big buttons" },
-    { icon: glyph(0xf05af), name: "Open windows",    what: "Click to bring up, click again to minimize. Right-click for Close" }
+    { icon: glyph(0xf05af), name: "Open windows",    what: "Click to bring up, click again to minimize. Right-click to minimize, add to Favorites or close" }
   ]
 
   readonly property var rightRows: [
     { header: "Middle: two menus around the ?" },
-    { icon: "Tools", name: "Tools (left of ?)", what: "Calculator, Screenshot, Record screen, Color picker, Emoji, Clipboard, Shortcuts, Terminal, Theme, Lock, Restart or shut down" },
-    { icon: "Fav", name: "Favorites (right of ?)", what: "Your favorite apps, the same ones as the dock: Files, browser, terminal, Calculator, YouTube and more" },
+    { icon: "Tools", name: "Tools (left of ?)", what: "Calculator, Screenshot (saved in your Pictures folder), Record screen, Color picker, Emoji, Clipboard, Shortcuts, Terminal, Theme, Lock, Restart or shut down" },
+    { icon: "Fav", name: "Favorites (right of ?)", what: "Your favorite apps in one click. Add one: right-click its window on the taskbar. Remove one: right-click it here" },
     { header: "Right side: click an icon to open its panel" },
+    { icon: "\uf021",        name: "Update",          what: "Shows only when an Omarchy update is ready: click it to install" },
     { icon: glyph(0xf01e7), name: "World clocks",    what: "The time in other cities, with a globe" },
     { icon: glyph(0xf0595), name: "Weather",         what: "Today's weather and the forecast" },
-    { icon: glyph(0xf057e), name: "Display, Sound, Network, Bluetooth", what: "Always on the bar now: click one to open its panel" },
-    { icon: "1 +1",         name: "Memory",          what: "Omnemo: memories saved, + how many learned today" },
+    { icon: glyph(0xf057e), name: "Display, Sound, Network, Bluetooth", what: "Click one to open its panel" },
     { icon: glyph(0xf0954), name: "Clock", what: "Hover for the day, date and time. Click for the calendar" },
     { icon: glyph(0xf0425), name: "Power",           what: "Battery, power mode, lock, restart, shut down" }
   ]
@@ -50,7 +50,6 @@ BarWidget {
   // buttons. If Omarchy changes its widgets, this quietly does nothing.
   readonly property var hoverLabels: ({
     "omarchy.weather":   "Weather: click for today and the next days",
-    "omnemo.memory":     "Omnemo memory: memories saved, + how many learned today",
     "omarchy.agents":    "AI meter: how much of each AI plan you've used",
     "omarchy.monitor":   "Display: brightness and screens",
     "omarchy.audio":     "Sound: volume, speakers and microphone",

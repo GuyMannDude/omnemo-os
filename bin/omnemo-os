@@ -157,6 +157,125 @@ shell_step() {
   die "'$*' failed twice; run 'omnemo-os uninstall' to undo what was applied"
 }
 
+# --- everyday-user extras -----------------------------------------------------
+# Plain files the edition adds or changes for people who are not developers:
+# the one-bar guard, friendly app names, icon sets two stock themes ask for but
+# do not ship, and text files opening in Writer. Each path is backed up at
+# install (or noted as absent) and put back exactly at uninstall.
+SYSTEM_SRC="$REPO_DIR/system"
+APPS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+ICONS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons"
+UNITS_DIR="$CFG/systemd/user"
+GUARD="$HOME/.local/bin/omnemo-one-bar"
+MIMEAPPS="$CFG/mimeapps.list"
+NAME_MARK="# omnemo-os: friendly name (omnemo-os repair puts it back)"
+# Omarchy's white and vantablack themes name these icon sets; neither is
+# installed, so app icons vanish in those themes. (Reported upstream.)
+ICON_SHIMS=(Yaru-gray Yaru-grey)
+# desktop id | friendly name | plain description
+FRIENDLY_NAMES=(
+  "foot|Terminal|Type commands to your computer"
+  "omacalc|Calculator|Add, subtract and more"
+  "omawrite|Writer|Write notes and documents"
+)
+
+managed_files() {
+  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS"
+  local shim entry
+  for shim in "${ICON_SHIMS[@]}"; do printf '%s\n' "$ICONS_DIR/$shim/index.theme"; done
+  for entry in "${FRIENDLY_NAMES[@]}"; do printf '%s\n' "$APPS_DIR/${entry%%|*}.desktop"; done
+}
+
+# Copy each managed file into the backup (keeping its full path), or list it
+# as absent so uninstall removes it.
+backup_managed() {   # "$1" = backup dir
+  local f
+  : >"$1/absent.list"
+  while IFS= read -r f; do
+    if [[ -e $f ]]; then mkdir -p "$1/files$(dirname "$f")"; cp -p "$f" "$1/files$f"
+    else printf '%s\n' "$f" >>"$1/absent.list"; fi
+  done < <(managed_files)
+}
+
+restore_managed() {   # "$1" = backup dir
+  local f
+  while IFS= read -r f; do
+    if [[ -e "$1/files$f" ]]; then mkdir -p "$(dirname "$f")"; cp -p "$1/files$f" "$f"
+    elif grep -qxF -e "$f" "$1/absent.list"; then rm -f -- "$f"; fi
+  done < <(managed_files)
+  local shim
+  for shim in "${ICON_SHIMS[@]}"; do rmdir "$ICONS_DIR/$shim" 2>/dev/null || true; done
+}
+
+# Rename apps whose desktop names mean nothing to a non-developer. The copy in
+# ~/.local/share/applications wins over the system one; an Omarchy migration
+# can copy foot.desktop back over it, which `status` spots and `repair` fixes.
+apply_friendly_names() {
+  local entry id name comment src target tmp
+  mkdir -p "$APPS_DIR"
+  for entry in "${FRIENDLY_NAMES[@]}"; do
+    IFS='|' read -r id name comment <<<"$entry"
+    target="$APPS_DIR/$id.desktop"
+    grep -qxF -e "$NAME_MARK" "$target" 2>/dev/null && continue
+    src=""
+    for src in "$target" "/usr/share/omarchy/applications/$id.desktop" "/usr/share/applications/$id.desktop"; do
+      [[ -f $src ]] && break
+      src=""
+    done
+    [[ -n $src ]] || continue   # app not installed
+    tmp="$(mktemp)"
+    awk -v name="$name" -v comment="$comment" '
+      /^\[/ { main = ($0 == "[Desktop Entry]") }
+      main && /^Name=/ && !n { print "Name=" name; n = 1; next }
+      main && /^Comment=/ && !c { print "Comment=" comment; c = 1; next }
+      { print }' "$src" >"$tmp"
+    printf '%s\n' "$NAME_MARK" >>"$tmp"
+    mv "$tmp" "$target"
+  done
+  update-desktop-database "$APPS_DIR" >/dev/null 2>&1 || true
+}
+
+missing_friendly_names() {
+  local entry id
+  for entry in "${FRIENDLY_NAMES[@]}"; do
+    id="${entry%%|*}"
+    [[ -f "/usr/share/applications/$id.desktop" || -f "/usr/share/omarchy/applications/$id.desktop" ]] || continue
+    grep -qxF -e "$NAME_MARK" "$APPS_DIR/$id.desktop" 2>/dev/null || printf '%s\n' "$id"
+  done
+}
+
+install_extras() {
+  local shim
+  for shim in "${ICON_SHIMS[@]}"; do
+    [[ -d "/usr/share/icons/$shim" || -e "$ICONS_DIR/$shim/index.theme" ]] && continue
+    mkdir -p "$ICONS_DIR/$shim"
+    printf '[Icon Theme]\nName=%s\nComment=Omnemo OS stand-in: an Omarchy theme names this icon set, which is not installed\nInherits=Yaru,hicolor\nDirectories=\n' "$shim" >"$ICONS_DIR/$shim/index.theme"
+  done
+  apply_friendly_names
+  command -v xdg-mime >/dev/null && [[ -f "$APPS_DIR/omawrite.desktop" || -f /usr/share/applications/omawrite.desktop ]] &&
+    xdg-mime default omawrite.desktop text/plain
+  install -Dm755 "$SYSTEM_SRC/omnemo-one-bar" "$GUARD"
+  install -Dm644 -t "$UNITS_DIR" "$SYSTEM_SRC/omnemo-one-bar.service" "$SYSTEM_SRC/omnemo-one-bar.timer"
+  systemctl --user daemon-reload
+  systemctl --user enable --now omnemo-one-bar.timer >/dev/null 2>&1 ||
+    say "warning: could not start the one-bar guard; 'omnemo-os repair' tries again"
+}
+
+remove_extras() {   # "$1" = backup dir
+  systemctl --user disable --now omnemo-one-bar.timer >/dev/null 2>&1 || true
+  systemctl --user stop omnemo-one-bar.service >/dev/null 2>&1 || true
+  restore_managed "$1"
+  systemctl --user daemon-reload
+  update-desktop-database "$APPS_DIR" >/dev/null 2>&1 || true
+}
+
+# A restart can leave a second bar behind on a box whose shell runtime folder
+# filled up; the guard settles it at once instead of within 30 seconds.
+restart_shell() {
+  omarchy restart shell
+  [[ -x "$GUARD" ]] && "$GUARD" || true
+}
+
 # --- install ----------------------------------------------------------------
 cmd_install() {
   local allow_rc=0
@@ -173,6 +292,12 @@ cmd_install() {
     [[ -d "$PLUGIN_SRC/$p" ]] || die "plugin source missing: $PLUGIN_SRC/$p"
     [[ -e "$PLUGIN_DST/$p" ]] && die "$PLUGIN_DST/$p already exists and is not ours; refusing (exact-stock promise)"
   done
+
+  local f
+  for f in omnemo-one-bar omnemo-one-bar.service omnemo-one-bar.timer; do
+    [[ -f "$SYSTEM_SRC/$f" ]] || die "missing $SYSTEM_SRC/$f"
+  done
+  [[ -e "$UNITS_DIR/omnemo-one-bar.timer" ]] && die "$UNITS_DIR/omnemo-one-bar.timer already exists and is not ours; refusing"
 
   local ts; ts="$(date -u +%Y%m%dT%H%M%SZ)"
   local bk="$OUR_STATE/backup/$ts"; mkdir -p "$bk" "$PLUGIN_DST"
@@ -201,6 +326,7 @@ cmd_install() {
     grep -qxF -e "$RULE_BEGIN" "$LOOK_LUA" && die "$LOOK_LUA already carries an omnemo-os block; refusing"
     cp -p "$LOOK_LUA" "$bk/looknfeel.lua"; look_was="present"
   fi
+  backup_managed "$bk"
   say "backed up to $bk"
   # Record the install before changing anything, so a run that dies partway
   # can still be undone with 'omnemo-os uninstall'.
@@ -208,7 +334,7 @@ cmd_install() {
      --arg me "$menu_was" --arg bi "$bind_was" --arg lo "$look_was" \
      --arg sha "$(sha256sum "$bk/shell.json" | cut -d' ' -f1)" \
      --argjson plugins "$(printf '%s\n' "${PLUGINS[@]}" | jq -R . | jq -s .)" \
-     '{installed_at:$ts, edition_version:$v, backup_dir:$bk, shell_json_sha256:$sha, workspace_layouts_was:$ws, hyprland_lua_was:$hy, menu_jsonc_was:$me, bindings_lua_was:$bi, looknfeel_lua_was:$lo, plugins:$plugins}' \
+     '{installed_at:$ts, edition_version:$v, backup_dir:$bk, shell_json_sha256:$sha, workspace_layouts_was:$ws, hyprland_lua_was:$hy, menu_jsonc_was:$me, bindings_lua_was:$bi, looknfeel_lua_was:$lo, extras:true, plugins:$plugins}' \
      >"$RECORD"
 
   for p in "${PLUGINS[@]}"; do cp -r "$PLUGIN_SRC/$p" "$PLUGIN_DST/$p"; done
@@ -240,7 +366,10 @@ cmd_install() {
   hyprctl reload >/dev/null 2>&1 || true
   say "Apps menu entry, Super+Alt+Space and cursor rule written"
 
-  omarchy restart shell
+  install_extras
+  say "one-bar guard on; friendly app names, icon sets and Writer for text files set"
+
+  restart_shell
   say "installed. Undo: omnemo-os uninstall"
 }
 
@@ -279,6 +408,7 @@ cmd_uninstall() {
     present) cp -p "$bk/looknfeel.lua" "$LOOK_LUA" ;;
     absent)  [[ -f "$LOOK_LUA" ]] && { windowrule_remove "$LOOK_LUA"; [[ -s "$LOOK_LUA" ]] || rm -f "$LOOK_LUA"; } ;;
   esac
+  [[ "$(jq -r '.extras // false' "$RECORD")" == true ]] && remove_extras "$bk"
   hyprctl reload >/dev/null 2>&1 || true   # also re-reads the restored workspace layouts
   local p
   while IFS= read -r p; do
@@ -286,12 +416,35 @@ cmd_uninstall() {
   done < <(jq -r '.plugins[]' "$RECORD")
   mv "$RECORD" "$OUR_STATE/uninstalled-$(date -u +%Y%m%dT%H%M%SZ).json"
   omarchy restart shell
+  "$REPO_DIR/system/omnemo-one-bar" 2>/dev/null || true   # the installed guard is gone now
   say "restored to stock (shell.json byte-exact from $bk)"
 }
 
 cmd_status() {
   if [[ -f "$RECORD" ]]; then say "installed:"; jq . "$RECORD"; else say "not installed"; fi
   local v; v="$(omarchy_version 2>/dev/null)" || v=unknown; say "omarchy: $v"
+  if [[ -f "$RECORD" ]]; then
+    local lost; lost="$(missing_friendly_names | tr '\n' ' ')"
+    [[ -n $lost ]] && say "an Omarchy update reset the friendly names of: $lost-- run 'omnemo-os repair'"
+    systemctl --user is-active --quiet omnemo-one-bar.timer || say "the one-bar guard is off -- run 'omnemo-os repair'"
+  fi
+  return 0
+}
+
+# Put back what an Omarchy update may have reset, without touching the backup.
+cmd_repair() {
+  [[ -f "$RECORD" ]] || die "not installed (no $RECORD)"
+  apply_friendly_names
+  [[ -f "$UNITS_DIR/omnemo-one-bar.timer" && -x "$GUARD" ]] || {
+    install -Dm755 "$SYSTEM_SRC/omnemo-one-bar" "$GUARD"
+    install -Dm644 -t "$UNITS_DIR" "$SYSTEM_SRC/omnemo-one-bar.service" "$SYSTEM_SRC/omnemo-one-bar.timer"
+    systemctl --user daemon-reload
+  }
+  systemctl --user enable --now omnemo-one-bar.timer >/dev/null 2>&1 || true
+  local lost; lost="$(missing_friendly_names | tr '\n' ' ')"
+  [[ -z $lost ]] || die "could not restore the friendly names of: $lost"
+  systemctl --user is-active --quiet omnemo-one-bar.timer || die "the one-bar guard would not start (systemctl --user status omnemo-one-bar.timer)"
+  say "friendly names and the one-bar guard are back"
 }
 
 sub="${1:-}"; case "$(basename "$0")" in omnemo-os-install) sub=install; set -- "$@" ;; omnemo-os-uninstall) sub=uninstall ;; esac
@@ -299,5 +452,6 @@ case "$sub" in
   install)   [[ "${1:-}" == install ]] && shift; cmd_install "$@" ;;
   uninstall) cmd_uninstall ;;
   status)    cmd_status ;;
-  *) printf 'usage: omnemo-os install [--allow-rc] | uninstall | status\n'; exit 2 ;;
+  repair)    cmd_repair ;;
+  *) printf 'usage: omnemo-os install [--allow-rc] | uninstall | status | repair\n'; exit 2 ;;
 esac

@@ -25,7 +25,7 @@ BarWidget {
     for (var i = 0; i < root.pinnedIds.length; i++) {
       var entry = DesktopEntries.byId(root.pinnedIds[i])
       if (!entry) continue
-      out.push({ entryIcon: entry.icon, label: entry.name, command: ["uwsm-app", "--", String(entry.id) + ".desktop"] })
+      out.push({ id: String(entry.id), entryIcon: entry.icon, label: entry.name, command: ["uwsm-app", "--", String(entry.id) + ".desktop"] })
     }
     return out
   }
@@ -42,6 +42,17 @@ BarWidget {
 
   property bool popupOpen: false
   function close() { popupOpen = false }
+
+  // A right-clicked favorite asks "Remove?" and goes on the next click; moving
+  // off it, or closing the pop-up, changes nothing.
+  property string removing: ""
+  onPopupOpenChanged: if (!popupOpen) removing = ""
+
+  function unpin(id) {
+    root.run(["omarchy", "dock", "unpin", id])
+    root.pinnedIds = root.pinnedIds.filter(function(other) { return other !== id })
+    root.removing = ""
+  }
 
   // Start the app first, then close the pop-up, all inside root, since
   // closing can rebuild the tiles and destroy the one that was clicked.
@@ -73,7 +84,7 @@ BarWidget {
     text: "Favorites " + root.glyph(0xf0143)
     active: root.popupOpen
     useActiveColor: false
-    tooltipText: root.popupOpen ? "" : "Your favorite apps above: the ones pinned to the dock"
+    tooltipText: root.popupOpen ? "" : "Your favorite apps. To add one, right-click its window on the taskbar. To remove one, right-click it here"
     onPressed: function(b) {
       if (b !== Qt.LeftButton) return
       if (!root.popupOpen && !readPins.running) readPins.running = true
@@ -144,8 +155,8 @@ BarWidget {
             maximumLineCount: 2
             elide: Text.ElideRight
             textFormat: Text.PlainText
-            text: choice.modelData.label
-            color: Commons.Color.foreground
+            text: root.removing !== "" && root.removing === choice.modelData.id ? "Remove?" : choice.modelData.label
+            color: root.removing !== "" && root.removing === choice.modelData.id ? Commons.Color.accent : Commons.Color.foreground
             font.family: Style.fontFamily
             font.pixelSize: Style.font.body - 1
           }
@@ -155,7 +166,14 @@ BarWidget {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.launch(choice.modelData.command)
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onExited: if (root.removing === choice.modelData.id) root.removing = ""
+            onClicked: function(mouse) {
+              var id = choice.modelData.id || ""
+              if (mouse.button === Qt.RightButton) { if (id) root.removing = id }
+              else if (id && root.removing === id) root.unpin(id)
+              else root.launch(choice.modelData.command)
+            }
           }
         }
       }
