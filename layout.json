@@ -10,16 +10,19 @@
   ],
   "right": [
     "omarchy.indicators",
-    "omarchy.elsewhen",
-    "omarchy.weather",
     "omarchy.system-update",
     "omarchy.keyboard-layout",
-    "omarchy.monitor",
+    "omarchy.tray",
+    "guy.utils",
     "omarchy.audio",
-    "omarchy.network",
-    "omarchy.bluetooth",
     "guy.clock",
     "omarchy.power"
   ],
-  "tray": []
+  "tray": [
+    "omarchy.network",
+    "omarchy.bluetooth",
+    "omarchy.monitor",
+    "omarchy.weather",
+    "omarchy.elsewhen"
+  ]
 }

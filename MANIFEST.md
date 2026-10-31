@@ -1,16 +1,17 @@
 # Omnemo OS — edition inventory (built on Omarchy, MIT)
-v0.9.0 Public Preview · updated 2026-10-30 21:30 PDT · base: Omarchy 4.5.0rc2 (rc channel; stable gate = 4.5.0-1)
-Rule: a layer on stock Omarchy, no fork. Everything below is user-level (no sudo), backed up at install, and put back byte-for-byte by `omnemo-os uninstall` (cold run #5: 23 paths identical).
+v0.9.0 Public Preview · updated 2026-10-30 22:15 PDT · base: Omarchy 4.5.0rc2 (rc channel; stable gate = 4.5.0-1)
+Rule: a layer on stock Omarchy, no fork. Everything below is user-level (no sudo), backed up at install, and put back byte-for-byte by `omnemo-os uninstall` (cold run #7: every path identical, content AND file modes).
 
 ## 1. Plugins we ship (~/.config/omarchy/plugins/)
 | Plugin | Where on the bar | What it does |
 |---|---|---|
-| guy.taskbar | left | AI, Browsers, Web apps pop up choices; Files, Apps, Settings (= the full Omarchy menu), Utils; one icon per open window (click = focus/minimize/restore; right-click = Minimize / Close / Add to or Remove from Favorites). When windows don't fit, the rest go behind a "+N" button (the active window always stays visible). AI entries only show what works: Claude = CLI or claude.ai web app, ChatGPT = desktop app or chatgpt.com web app, Codex/OpenCode only when installed |
+| guy.taskbar | left | AI, Browsers, Web apps pop up choices; Files, Apps, Settings (= the full Omarchy menu); one icon per open window (click = focus/minimize/restore; right-click = Minimize / Close / Add to or Remove from Favorites). When windows don't fit, the rest go behind a "+N" button (the active window always stays visible). AI entries only show what works: Claude = CLI or claude.ai web app, ChatGPT = desktop app or chatgpt.com web app, Codex/OpenCode only when installed |
 | guy.tools | center, left of ? | "Tools ▴": Calculator, Screenshot (saved in Pictures), Record screen, Color picker, Emoji, Clipboard, Keyboard shortcuts, Terminal, Theme & wallpaper, Lock, Restart or shut down |
 | guy.help | center | "?": a plain-words guide to every bar icon. Also gives Omarchy's unlabeled stock icons hover labels at runtime (see §6). Shows an Update row only when an update is ready |
 | guy.favorites | center, right of ? | "Favorites ▴": All apps + pinned apps (read live via `omarchy dock pinned`). Right-click a tile → "Remove?" → click to unpin |
+| guy.utils | right, after the ‹ | Wrench: pops up Wi-Fi & internet, Bluetooth, Display, Sound, Weather, World clocks, Calendar and All settings, each with its name. Opens Omarchy's own panels (see §6) |
 | guy.clock | right, before power | Clock icon; hover = day/date/time; click = month calendar |
-Stock widget placed by us: omarchy.agents (AI usage meter) at the far left.
+Stock widgets placed by us: omarchy.agents (AI usage meter) at the far left; omarchy.tray (‹) on the right, holding Network, Bluetooth, Display, Weather and World clocks in its drawer, plus any background-app tray icons.
 Not shipped: omnemo.memory (Guy, 10-30: "User does not need a memory display"), guy.start, guy.apps, guy.dock.
 Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 
@@ -19,7 +20,8 @@ Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 |---|---|---|---|
 | Bar position | bottom | `omarchy bar position bottom` | shell.json backup |
 | Bar layout | see layout.json | `bar.layout` in ~/.config/omarchy/shell.json | shell.json backup |
-| Removed from bar | omarchy.menu, omarchy.workspaces, omarchy.clock (→ guy.clock), omarchy.tray | layout | shell.json backup |
+| Removed from bar | omarchy.menu, omarchy.workspaces, omarchy.clock (→ guy.clock) | layout | shell.json backup |
+| Right side | only ‹ (hidden icons), wrench, Sound, clock, power; Update, recording and keyboard-language icons appear only when they matter. Network, Bluetooth, Display, Weather, World clocks move into the ‹ drawer (`bar.layout.tray`) | layout | shell.json backup |
 | Stock dock | disabled (it duplicated Favorites/Tools and popped up on bottom-edge hover). `.dock.pinned` is KEPT: Favorites reads it | `omarchy plugin disable omarchy.dock` | shell.json backup (disabledPlugins lives there) |
 | Workspaces | floating by default | `omarchy hyprland workspace layout default floating` | workspace-layouts dir backup (or removed if it was absent) |
 | Window fit | new floating windows open centered and fit above the bar | marked block in ~/.config/hypr/hyprland.lua, max_size computed from the monitor at install | file backup |
@@ -48,12 +50,15 @@ No system files, no sudo, no Omarchy source edits, no desktop icons (Guy's veto)
 - guy.taskbar measures free room by walking to the next widget's x; uses hyprctl polling (1.5 s, paused while its menu is open), hl.dsp.* dispatchers and special:minimized. Re-check on every Omarchy release.
 - Repeater modelData arrays fail Array.isArray: run() in taskbar/favorites copies any non-string into a plain array before launching (argv, never sh -c).
 - Menu rows do their work in a root function, not in the row's onClicked (closing the menu destroys the row mid-handler).
+- guy.utils (wrench) opens panels with `omarchy-shell shell summon <id> {}`. Omarchy only opens a panel whose widget is LIVE on the bar (journal when it isn't: `summon: no live bar widget for: omarchy.clock`), and widgets in the tray drawer stay live only while omarchy.tray is on the bar. That's why the ‹ stays. If Omarchy changes this, the wrench entries quietly do nothing (no crash), and the panels still open from the ‹ drawer.
+- shell.json is 600 after any Omarchy bar command (the shell's own writer); ours carries the mode through and uninstall puts the original mode back (cold run #6/#7).
 
 ## 7. Security review (CC #5565): no blockers
 Window address validated before every dispatch; launches built as argv; help walk documented + try/catch; DEBUG logging stripped (10-30).
 
 ## 8. Known issues / open
-- Gate: Omarchy 4.5 stable, plus a reboot + `omarchy-update` survival check (pending, needs Guy).
+- Gate: Omarchy 4.5 stable. Reboot check PASSED and `omarchy-update` PASSED 10-30 (6 app packages moved, Omarchy itself did not).
+- omarchy-update ran clean with Omnemo OS on; an Omarchy version bump is untested until 4.5 stable, and status/repair is the backstop (foot.desktop reset is the known case).
 - Chrome site notifications arrive as critical and stay until dismissed; turn them off per site in Chrome. Upstream suggestion drafted, unposted (~/omnemo-os-pending/upstream-issue-notifications.md).
 - quickshell logs "Module path ... is outside of the config folder" for every user plugin: harmless, stock behaviour.
 - Plugin versions all 0.1.0; bump when packaging.

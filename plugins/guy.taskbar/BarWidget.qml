@@ -27,9 +27,9 @@ BarWidget {
     { icon: String.fromCodePoint(0xf08c6), label: "Web apps", hint: "Pick a web app",        group: "webapps" },
     { icon: String.fromCodePoint(0xf0770), label: "Files",    hint: "Open the file manager", command: "omarchy-launch-nautilus" },
     { icon: String.fromCodePoint(0xf003b), label: "Apps",     hint: "Pick an app to open",   command: "omarchy-menu toggle apps" },
-    { icon: String.fromCodePoint(0xf0493), label: "Settings", hint: "Open the Omarchy menu", command: "omarchy-menu toggle" },
-    { icon: String.fromCodePoint(0xf05b7), label: "Utils",    hint: "Display, sound, network, Bluetooth, calendar", items: root.utilItems }
+    { icon: String.fromCodePoint(0xf0493), label: "Settings", hint: "Open the Omarchy menu", command: "omarchy-menu toggle" }
   ]
+  // (The Utils wrench moved to the right of the bar as its own widget, guy.utils.)
 
   // Omarchy's own panels. Their icons sit folded in the bar's tray drawer
   // (shell.json bar.layout.tray), since a panel only opens while its icon is

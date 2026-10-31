@@ -15,12 +15,12 @@ cd omnemo-os
 bin/omnemo-os install --allow-rc
 ```
 
-`--allow-rc` is only needed while 4.5 is a release candidate. `bin/omnemo-os status` shows what is installed; `bin/omnemo-os uninstall` restores stock, byte for byte.
+`--allow-rc` is only needed while 4.5 is a release candidate. `bin/omnemo-os status` shows what is installed and flags anything an Omarchy update reset; `bin/omnemo-os repair` puts it back; `bin/omnemo-os uninstall` restores stock, byte for byte.
 
 - `MANIFEST.md` — every file and setting the edition touches, as written on the test laptop.
 - `INSTALLER-NOTES.md` — installer-side notes.
-- `bin/omnemo-os` (`install` / `uninstall` / `status`) — the edition layer; `bin/omnemo-os-install` and `-uninstall` are the same script by another name.
-- `plugins/` — the edition's five bar plugins.
+- `bin/omnemo-os` (`install` / `uninstall` / `status` / `repair`) — the edition layer; `bin/omnemo-os-install` and `-uninstall` are the same script by another name.
+- `plugins/` — the edition's six bar plugins. `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running).
 
 ## Share your ideas
 

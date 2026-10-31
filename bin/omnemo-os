@@ -26,7 +26,7 @@ OUR_STATE="$STATE/omnemo-os"
 RECORD="$OUR_STATE/installed.json"
 
 # Edition plugins (MANIFEST §1). omnemo.memory ships with Omnemo itself, not here.
-PLUGINS=(guy.taskbar guy.tools guy.help guy.favorites guy.clock)   # guy.start retired 10-27
+PLUGINS=(guy.taskbar guy.tools guy.help guy.favorites guy.clock guy.utils)   # guy.start retired 10-27
 MIN_VERSION="4.5.0"
 
 die()  { printf 'omnemo-os: %s\n' "$*" >&2; exit 1; }

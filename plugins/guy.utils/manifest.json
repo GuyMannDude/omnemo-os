@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "guy.utils",
+  "name": "Settings wrench",
+  "version": "0.1.0",
+  "author": "Archie (CC4)",
+  "description": "A wrench on the right of the bar that pops up Wi-Fi, Bluetooth, Display, Weather, World clocks and Calendar by name",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Settings wrench",
+    "description": "Quick settings with names, like the Windows quick settings",
+    "category": "System",
+    "allowMultiple": false
+  }
+}
