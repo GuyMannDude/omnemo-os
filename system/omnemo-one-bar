@@ -1,0 +1,89 @@
+#!/bin/bash
+# omnemo-one-bar: keep exactly one Omarchy bar running, and keep the shell's
+# runtime folder from filling up. Run every 30s by omnemo-one-bar.timer.
+#
+# Quickshell leaves a folder (logs included) in $XDG_RUNTIME_DIR/quickshell for
+# every shell it ever started and never removes it. When that small tmpfs fills,
+# a new shell cannot write its instance file, `omarchy restart shell` can no
+# longer find it to stop it, and every restart stacks another bar on the screen.
+#
+# Safety: acts only on this user's processes and only under
+# $XDG_RUNTIME_DIR/quickshell/by-id; sends TERM, never KILL.
+
+set -u
+
+say() { logger -t omnemo-one-bar -- "$*"; }
+
+RT=${XDG_RUNTIME_DIR:-}
+if [[ -z $RT || -L $RT || ! -d $RT || $(stat -c %u "$RT") != "$UID" ]]; then
+  echo "omnemo-one-bar: XDG_RUNTIME_DIR is unset or not a directory owned by $UID; doing nothing" >&2
+  exit 1
+fi
+RT=$(realpath -e "$RT") || exit 1
+
+LAUNCHER=/usr/share/omarchy/bin/omarchy-launch-shell
+
+owned() { [[ $(stat -c %u "/proc/$1" 2>/dev/null) == "$UID" ]]; }
+
+# A live Quickshell of ours: the process exists, is ours, and is quickshell
+# (a PID that was reused by something else does not count).
+is_our_quickshell() {
+  owned "$1" && [[ $(cat "/proc/$1/comm" 2>/dev/null) == quickshell ]]
+}
+
+# A bar launcher of ours: argv is exactly `/bin/bash <launcher>`.
+is_our_launcher() {
+  local argv=()
+  owned "$1" || return 1
+  mapfile -d '' -t argv <"/proc/$1/cmdline" 2>/dev/null || return 1
+  (( ${#argv[@]} == 2 )) && [[ ${argv[0]} == /bin/bash && ${argv[1]} == "$LAUNCHER" ]]
+}
+
+start_time() { awk '{print $22}' "/proc/$1/stat" 2>/dev/null; }
+
+# 1. Two or more bars: each has its own launcher, which brings its shell back
+#    if only the shell is stopped. Stop every launcher but the newest; a
+#    stopped launcher takes its shell down with it and does not relaunch.
+launchers=()
+for dir in /proc/[0-9]*; do
+  pid=${dir#/proc/}
+  is_our_launcher "$pid" && launchers+=("$(start_time "$pid") $pid")
+done
+if (( ${#launchers[@]} > 1 )); then
+  mapfile -t launchers < <(printf '%s\n' "${launchers[@]}" | sort -n | awk '{print $2}')
+  for pid in "${launchers[@]:0:${#launchers[@]}-1}"; do
+    say "extra bar: stopping launcher $pid"
+    kill -TERM "$pid" 2>/dev/null
+  done
+fi
+
+# 2. Remove the folders of shells that are no longer running.
+BYID="$RT/quickshell/by-id"
+BYPID="$RT/quickshell/by-pid"
+[[ -d $BYID && ! -L $BYID ]] || exit 0
+BYID=$(realpath -e "$BYID") || exit 0
+[[ $BYID == "$RT/quickshell/by-id" ]] || exit 0
+
+live=" "
+for link in "$BYPID"/*; do
+  [[ -L $link ]] || continue
+  pid=${link##*/}
+  [[ $pid =~ ^[0-9]+$ ]] && is_our_quickshell "$pid" || continue
+  target=$(realpath -e "$link" 2>/dev/null) || continue
+  live+="${target##*/} "
+done
+# Shells are starting or stopping right now; try again next round.
+[[ $live == " " ]] && exit 0
+
+for dir in "$BYID"/*; do
+  [[ -d $dir && ! -L $dir ]] || continue
+  real=$(realpath -e "$dir") || continue
+  [[ $real == "$BYID"/?* && ${real%/*} == "$BYID" ]] || continue
+  [[ $live == *" ${real##*/} "* ]] && continue
+  rm -rf -- "$real"
+done
+# Links left pointing at removed folders.
+for link in "$BYPID"/* "$RT"/quickshell/by-shell/*/*; do
+  [[ -L $link && ! -e $link ]] && rm -f -- "$link"
+done
+exit 0

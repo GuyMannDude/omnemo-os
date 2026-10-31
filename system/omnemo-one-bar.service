@@ -1,0 +1,7 @@
+[Unit]
+Description=Keep exactly one Omarchy bar running (Omnemo OS)
+
+[Service]
+Type=oneshot
+TimeoutStartSec=20s
+ExecStart=%h/.local/bin/omnemo-one-bar

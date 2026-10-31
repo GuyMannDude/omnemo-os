@@ -1,0 +1,10 @@
+[Unit]
+Description=Check every 30s that exactly one Omarchy bar runs (Omnemo OS)
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
