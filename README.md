@@ -1,15 +1,15 @@
 # Omnemo OS
 
-Omarchy, made easy, with memory built in.
+Omarchy, made easy, made for memory.
 
-Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon), and [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: one command installs it, and one command puts your computer back exactly as it was.
+Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon), made to run with [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: one command installs it, and one command puts your computer back exactly as it was.
 
 **Status: v0.9 Public Preview.** It works on today's Omarchy 4.5 test version and will be called 1.0 once Omarchy 4.5 stable is out and the edition has survived a reboot and an `omarchy-update` on a stock machine. Expect rough edges, and tell us about them (see below).
 
 ## Two ways to get it
 
 1. **Just the memory.** Already on Omarchy and happy with it? Install [Omnemo](https://github.com/GuyMannDude/omnemo) on its own. Its guide shows you how to use it.
-2. **The whole thing: Omnemo OS.** Install Omarchy from its own installer, then run our one command below. It sets up the friendlier desktop and installs Omnemo memory.
+2. **The whole thing: Omnemo OS.** Install Omarchy from its own installer, then run our one command below. It sets up the friendlier desktop. In this preview the memory is one more step: install [Omnemo](https://github.com/GuyMannDude/omnemo) from its own guide. Version 0.9.1 does both in one command.
 
 ## Install
 
@@ -27,7 +27,7 @@ bin/omnemo-os install --allow-rc
 
 `--allow-rc` is only needed while 4.5 is a test version. Afterwards, from any Terminal: `omnemo-os status` shows what is installed and flags anything an Omarchy update reset; `omnemo-os repair` puts it back; `omnemo-os uninstall` puts everything back exactly as it was.
 
-Your memories are yours. If Omnemo was already on this computer, the install asks whether to keep your memories (the default) or start fresh. Uninstall asks the same question; keeping them is the default, and if you choose to delete, it saves a copy in your home folder first and tells you where.
+Your memories are yours. This preview never touches them: install and uninstall leave your Omnemo memories exactly where they are. When 0.9.1 folds the memory into the installer, install and uninstall will ask whether to keep your memories (the default) or start fresh, and a delete will save a copy in your home folder first and tell you where.
 
 ## Share your ideas
 

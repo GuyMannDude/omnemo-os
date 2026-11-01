@@ -1,6 +1,6 @@
 # Helping make Omnemo OS better
 
-Omnemo OS is a friendlier desktop layered on top of Omarchy, with Omnemo memory built in: a bottom bar with a taskbar, Tools, a "?" guide and Favorites, plus a few fixes for people who are not developers. It is a living project, and your ideas are how it improves.
+Omnemo OS is a friendlier desktop layered on top of Omarchy, made for Omnemo memory: a bottom bar with a taskbar, Tools, a "?" guide and Favorites, plus a few fixes for people who are not developers. It is a living project, and your ideas are how it improves.
 
 ## Ideas and problems (no coding needed)
 On the GitHub page, click Issues → New issue, and pick **"Something went wrong (or confused me)"**. It asks three questions: what you tried to do, what happened, and what you expected. A photo of the screen is perfect.
