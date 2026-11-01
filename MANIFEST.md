@@ -42,6 +42,14 @@ Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 - status flags when an Omarchy update reset the friendly names (omarchy-refresh-applications re-copies foot.desktop) or the guard is off.
 - repair puts both back and checks its own result; safe to run any time, any number of times.
 
+## 4a. Omnemo memory (0.9.1)
+- install: if the Omnemo program is absent (no ~/.local/share/omnemo-venv, no ~/.local/bin/omnemo), set it up the INSTALL.md way, no sudo: venv + `pip install git+https://github.com/GuyMannDude/omnemo@<OMNEMO_REF>` (pinned, reviewed commit) + link + `omnemo setup` (skill + links in ~/.agents ~/.claude ~/.codex ~/.pi/agent, omnemo.memory plugin dir, omnemo-warm.service, MCP registration for claude/codex/opencode/crush/gemini). Runs BEFORE the layout write, so omnemo.memory is installed but never on the bar.
+- Already present: recorded `omnemo_was: present`, nothing run, uninstall leaves it alone.
+- Offline/failure: the desktop install goes on, record says `omnemo: failed`, status flags it, repair retries.
+- uninstall (only when the record says we installed it): `omnemo disconnect --all-pieces`, then remove the link and the venv. The store ~/.local/share/omnemo (memories + skill copy) is NEVER removed; uninstall prints where it is. A later install finds and keeps it.
+- Cold run #8 (10-31): install 1m24s; save + recall from the CLI, a new `claude -p` and `codex exec`; serve RSS 56 MB idle, 329 MB with the model loaded; uninstall byte+mode identical (all edition paths, every Omnemo path, the four harness config files, claude's mcpServers, the warm unit) except the store, which is the one intended leftover; reinstall over a kept store recalls the old memory.
+- 0.9.2: keep-or-fresh prompt (typed DELETE, tar first), `?` Memory row with live stats, ~/.local/bin/omnemo-os on PATH.
+
 ## 5. Not touched
 No system files, no sudo, no Omarchy source edits, no desktop icons (Guy's veto). One keybinding is re-pointed (Super+Alt+Space); nothing else.
 

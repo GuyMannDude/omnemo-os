@@ -7,7 +7,7 @@
 # what install created.
 set -euo pipefail
 
-VERSION="0.9.0"
+VERSION="0.9.1"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLUGIN_SRC="$REPO_DIR/plugins"
 LAYOUT_JSON="$REPO_DIR/layout.json"
@@ -287,6 +287,59 @@ restart_shell() {
   [[ -x "$GUARD" ]] && "$GUARD" || true
 }
 
+# --- Omnemo memory (MANIFEST §4a) --------------------------------------------
+# install sets up Omnemo the way its INSTALL.md does (venv + link + `omnemo
+# setup`), pinned to a reviewed commit. A box that already has the Omnemo
+# program is left alone. uninstall removes the program only if we installed it
+# (by record) and never touches the memory store.
+OMNEMO_REF="335633defdf04c21e74ebf8350a4fb419037ae51"   # omnemo main, reviewed 2026-10-31
+OMNEMO_URL="git+https://github.com/GuyMannDude/omnemo"
+OMNEMO_VENV="${XDG_DATA_HOME:-$HOME/.local/share}/omnemo-venv"
+OMNEMO_LINK="$HOME/.local/bin/omnemo"
+OMNEMO_STORE="${XDG_DATA_HOME:-$HOME/.local/share}/omnemo"
+
+omnemo_program_present() { [[ -e $OMNEMO_VENV || -e $OMNEMO_LINK || -L $OMNEMO_LINK ]]; }
+omnemo_bin() { if [[ -x $OMNEMO_VENV/bin/omnemo ]]; then printf '%s\n' "$OMNEMO_VENV/bin/omnemo"; else command -v omnemo; fi; }
+
+# Install the program; prints "installed" or "failed". Never dies: the desktop
+# install goes on without memory, status says so, repair tries again.
+omnemo_install() {
+  {
+    command -v python3 >/dev/null && command -v git >/dev/null || { say "memory: python3 and git are needed to install it" >&2; echo failed; return; }
+    say "memory: installing Omnemo (downloads a few hundred MB the first time; this can take several minutes)" >&2
+    python3 -m venv "$OMNEMO_VENV" >&2 &&
+    "$OMNEMO_VENV/bin/pip" install --quiet --disable-pip-version-check "$OMNEMO_URL@$OMNEMO_REF" >&2 &&
+    mkdir -p "$(dirname "$OMNEMO_LINK")" && ln -sfn "$OMNEMO_VENV/bin/omnemo" "$OMNEMO_LINK" &&
+    "$OMNEMO_VENV/bin/omnemo" --version >&2
+  } && {
+    # setup rows that cannot be done (a harness that is not installed) are not
+    # failures; a FAIL row is shown and kept, the rest still work.
+    "$OMNEMO_VENV/bin/omnemo" setup >&2 || say "memory: setup reported a problem above; 'omnemo-os repair' runs it again" >&2
+    echo installed
+  } || { say "memory: could not install Omnemo (no internet?); the desktop still installs. Run 'omnemo-os repair' later." >&2; echo failed; }
+}
+
+# Remove the program we installed. Memories (the store) are never touched.
+omnemo_remove() {
+  if [[ -x $OMNEMO_VENV/bin/omnemo ]]; then
+    "$OMNEMO_VENV/bin/omnemo" disconnect --all-pieces >/dev/null 2>&1 ||
+      say "memory: some AI helpers could not be unregistered; see 'omnemo disconnect' output if one complains"
+  fi
+  [[ -L $OMNEMO_LINK && $(readlink "$OMNEMO_LINK") == "$OMNEMO_VENV/bin/omnemo" ]] && rm -f -- "$OMNEMO_LINK"
+  rm -rf -- "${OMNEMO_VENV:?}"
+  say "memory: Omnemo program removed"
+}
+
+omnemo_memory_count() {   # active memories, or empty when unknown
+  local b; b="$(omnemo_bin)" || return 0
+  timeout 20 "$b" stats --json 2>/dev/null | jq -r '(.memory_count // 0) - (.superseded // 0)' 2>/dev/null || true
+}
+
+omnemo_keep_note() {
+  [[ -d $OMNEMO_STORE ]] || return 0
+  say "Your memories stay in $OMNEMO_STORE. To delete them yourself: copy the folder somewhere safe, then delete it."
+}
+
 # --- install ----------------------------------------------------------------
 cmd_install() {
   local allow_rc=0
@@ -351,6 +404,21 @@ cmd_install() {
      '{installed_at:$ts, edition_version:$v, backup_dir:$bk, shell_json_sha256:$sha, workspace_layouts_was:$ws, hyprland_lua_was:$hy, menu_jsonc_was:$me, bindings_lua_was:$bi, looknfeel_lua_was:$lo, extras:true, plugins:$plugins}' \
      >"$RECORD"
 
+  # Memory first: `omnemo setup` drops its own bar plugin in, and the layout
+  # written below then keeps it off the bar (it stays installed, disabled).
+  local tmp om_was om_state store_was="absent"
+  [[ -e $OMNEMO_STORE/store.db ]] && store_was="present"
+  if omnemo_program_present; then
+    om_was="present"; om_state="untouched"
+    say "memory: Omnemo is already on this computer; leaving it exactly as it is"
+  else
+    om_was="absent"; om_state="$(omnemo_install)"
+    [[ $store_was == present ]] && say "memory: found memories from before in $OMNEMO_STORE; keeping them"
+  fi
+  tmp="$(mktemp)"
+  jq --arg w "$om_was" --arg s "$om_state" --arg st "$store_was" --arg ref "$OMNEMO_REF" \
+     '. + {omnemo_was:$w, omnemo:$s, omnemo_store_was:$st, omnemo_ref:$ref}' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+
   for p in "${PLUGINS[@]}"; do cp -r "$PLUGIN_SRC/$p" "$PLUGIN_DST/$p"; done
   say "plugins installed: ${PLUGINS[*]}"
 
@@ -358,7 +426,7 @@ cmd_install() {
   shell_step omarchy bar position bottom
   shell_step omarchy plugin disable omarchy.dock   # MANIFEST §2: stock dock off; .dock.pinned stays for guy.favorites
   shell_step omarchy hyprland workspace layout default floating
-  local tmp; tmp="$(mktemp)"
+  tmp="$(mktemp)"
   jq --slurpfile L "$LAYOUT_JSON" '.bar.layout = $L[0]' "$SHELL_JSON" >"$tmp" && put "$tmp" "$SHELL_JSON"
   say "bar layout written"
 
@@ -384,6 +452,10 @@ cmd_install() {
   say "one-bar guard on; friendly app names, icon sets and Writer for text files set"
 
   restart_shell
+  case "$om_state" in
+    installed) say "memory: on. Start a NEW session of your AI helper (claude, codex, ...) and it shares one memory." ;;
+    failed)    say "memory: NOT installed yet; run 'omnemo-os repair' when you are online" ;;
+  esac
   say "installed. Undo: omnemo-os uninstall"
 }
 
@@ -397,6 +469,12 @@ cmd_uninstall() {
   [[ -f "$bk/shell.json" ]] || die "backup missing: $bk/shell.json; refusing to guess"
   local want have; want="$(jq -r .shell_json_sha256 "$RECORD")"; have="$(sha256sum "$bk/shell.json" | cut -d' ' -f1)"
   [[ "$want" == "$have" ]] || die "backup checksum mismatch; refusing to restore a tampered file"
+
+  # Memory first, while its own uninstaller is still there. Only what we
+  # installed (by record); the memories themselves always stay.
+  case "$(jq -r '.omnemo // "untouched"' "$RECORD")" in
+    installed|failed) omnemo_remove ;;
+  esac
 
   cp -p "$bk/shell.json" "$SHELL_JSON"   # also re-enables omarchy.dock: disabledPlugins lives in shell.json
   case "$ws_was" in
@@ -432,11 +510,22 @@ cmd_uninstall() {
   omarchy restart shell
   "$REPO_DIR/system/omnemo-one-bar" 2>/dev/null || true   # the installed guard is gone now
   say "restored to stock (shell.json byte-exact from $bk)"
+  omnemo_keep_note
 }
 
 cmd_status() {
   if [[ -f "$RECORD" ]]; then say "installed:"; jq . "$RECORD"; else say "not installed"; fi
   local v; v="$(omarchy_version 2>/dev/null)" || v=unknown; say "omarchy: $v"
+  local n
+  if omnemo_program_present && [[ -n $(omnemo_bin) ]]; then
+    n="$(omnemo_memory_count)"
+    if [[ -f "$RECORD" && "$(jq -r '.omnemo_was // ""' "$RECORD")" == present ]]; then
+      say "memory: on (already installed before Omnemo OS; uninstall leaves it alone)${n:+, $n saved}"
+    else say "memory: on${n:+, $n saved}"; fi
+    say "memory: uninstall keeps your memories in $OMNEMO_STORE (no keep-or-fresh question yet)"
+  else
+    if [[ -f "$RECORD" && "$(jq -r '.omnemo // ""' "$RECORD")" != untouched ]]; then say "memory: OFF -- run 'omnemo-os repair'"; else say "memory: off"; fi
+  fi
   if [[ -f "$RECORD" ]]; then
     local lost; lost="$(missing_friendly_names | tr '\n' ' ')"
     [[ -n $lost ]] && say "an Omarchy update reset the friendly names of: $lost-- run 'omnemo-os repair'"
@@ -448,6 +537,13 @@ cmd_status() {
 # Put back what an Omarchy update may have reset, without touching the backup.
 cmd_repair() {
   [[ -f "$RECORD" ]] || die "not installed (no $RECORD)"
+  if [[ "$(jq -r '.omnemo // "untouched"' "$RECORD")" == failed ]] || { [[ "$(jq -r '.omnemo // ""' "$RECORD")" == installed ]] && ! omnemo_program_present; }; then
+    local st tmp; st="$(omnemo_install)"
+    tmp="$(mktemp)"; jq --arg s "$st" '.omnemo = $s' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+    [[ $st == installed ]] || die "memory: still could not install Omnemo (no internet?)"
+  elif [[ "$(jq -r '.omnemo // ""' "$RECORD")" == installed ]]; then
+    "$OMNEMO_VENV/bin/omnemo" setup >/dev/null 2>&1 || say "memory: 'omnemo setup' reported a problem; run it by hand to see which"
+  fi
   apply_friendly_names
   [[ -f "$UNITS_DIR/omnemo-one-bar.timer" && -x "$GUARD" ]] || {
     install -Dm755 "$SYSTEM_SRC/omnemo-one-bar" "$GUARD"

@@ -9,7 +9,7 @@ Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the sa
 ## Two ways to get it
 
 1. **Just the memory.** Already on Omarchy and happy with it? Install [Omnemo](https://github.com/GuyMannDude/omnemo) on its own. Its guide shows you how to use it.
-2. **The whole thing: Omnemo OS.** Install Omarchy from its own installer, then run our one command below. It sets up the friendlier desktop. In this preview the memory is one more step: install [Omnemo](https://github.com/GuyMannDude/omnemo) from its own guide. Version 0.9.1 does both in one command.
+2. **The whole thing: Omnemo OS.** Install Omarchy from its own installer, then run our one command below. It sets up the friendlier desktop and [Omnemo](https://github.com/GuyMannDude/omnemo) memory together. If Omnemo is already on your computer, it is left exactly as it is.
 
 ## Install
 
@@ -25,9 +25,11 @@ cd omnemo-os
 bin/omnemo-os install --allow-rc
 ```
 
-`--allow-rc` is only needed while 4.5 is a test version. Afterwards, from any Terminal: `omnemo-os status` shows what is installed and flags anything an Omarchy update reset; `omnemo-os repair` puts it back; `omnemo-os uninstall` puts everything back exactly as it was.
+`--allow-rc` is only needed while 4.5 is a test version. The memory part downloads a few hundred MB, so it needs the internet and a couple of minutes; if you are offline, the desktop still installs and `bin/omnemo-os repair` adds the memory later. When it finishes, start a **new** session of your AI helper (Claude, Codex, ...) and it shares one memory with the others.
 
-Your memories are yours. This preview never touches them: install and uninstall leave your Omnemo memories exactly where they are. When 0.9.1 folds the memory into the installer, install and uninstall will ask whether to keep your memories (the default) or start fresh, and a delete will save a copy in your home folder first and tell you where.
+Afterwards, from the `omnemo-os` folder: `bin/omnemo-os status` shows what is installed (memory included) and flags anything an Omarchy update reset; `bin/omnemo-os repair` puts it back; `bin/omnemo-os uninstall` puts everything back exactly as it was, except your memories.
+
+Your memories are yours. Uninstall removes the memory program it installed but never your memories: they stay in `~/.local/share/omnemo`, and uninstall tells you where. Install again later and they are picked up where you left off. To delete them yourself, copy that folder somewhere safe, then delete it. (A keep-or-start-fresh question is coming in 0.9.2.)
 
 ## Share your ideas
 
@@ -39,7 +41,7 @@ Omnemo OS is brand new, and it's being shaped by the people who use it. You don'
 
 Problems or confusion: on the GitHub page click Issues → New issue → "Something went wrong (or confused me)". Ideas: click Discussions → Ideas. (You'll need a free GitHub account.) Or ask your AI assistant to write it up for you and paste it there. Every message gets read.
 
-If something breaks badly, `omnemo-os uninstall` puts your desktop back exactly the way Omarchy had it.
+If something breaks badly, `bin/omnemo-os uninstall` puts your desktop back exactly the way Omarchy had it.
 
 ## What's inside (you can skip this)
 
