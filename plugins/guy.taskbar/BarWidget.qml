@@ -16,18 +16,28 @@ BarWidget {
   moduleName: "guy.taskbar"
   fixedEdge: "start"
 
-  readonly property int iconSize: 18
+  readonly property int iconSize: 20
+
+  // Colored icons: the Papirus 48x48 set in ~/.local/share/omnemo-os/icons (downloaded and
+  // kept current by Omnemo OS). Any icon it lacks falls back to the theme
+  // icon, then to the old one-color glyph, so a missing set never blanks a button.
+  readonly property string colorIcons: Quickshell.env("HOME") + "/.local/share/omnemo-os/icons/48x48/"
+  function colorIcon(rel) { return "file://" + root.colorIcons + rel + ".svg" }
+
+  // Omarchy's own apps have no Papirus icon under their own names.
+  readonly property var colorAlias: ({ "omacalc": "accessories-calculator", "omawrite": "accessories-text-editor" })
+  function aliasIcon(name) { return root.colorAlias[name] || name }
 
   // The pinned buttons. A button with `items` (or a `group` filled from the
   // installed apps) is a category: clicking it pops up a row of choices above
   // it. A category with only one choice opens it straight away.
   readonly property var buttons: [
-    { icon: String.fromCodePoint(0xf09d1), label: "AI",       hint: "Pick an AI helper",     items: root.aiItems },
-    { icon: String.fromCodePoint(0xf059f), label: "Browsers", hint: "Pick a web browser",    group: "browsers" },
-    { icon: String.fromCodePoint(0xf08c6), label: "Web apps", hint: "Pick a web app",        group: "webapps" },
-    { icon: String.fromCodePoint(0xf0770), label: "Files",    hint: "Open the file manager", command: "omarchy-launch-nautilus" },
-    { icon: String.fromCodePoint(0xf003b), label: "Apps",     hint: "Pick an app to open",   command: "omarchy-menu toggle apps" },
-    { icon: String.fromCodePoint(0xf0493), label: "Settings", hint: "Open the Omarchy menu", command: "omarchy-menu toggle" }
+    { icon: String.fromCodePoint(0xf09d1), color: "apps/gbrainy", label: "AI",       hint: "Pick an AI helper",     items: root.aiItems },
+    { icon: String.fromCodePoint(0xf059f), color: "apps/applications-webbrowsers", label: "Browsers", hint: "Pick a web browser",    group: "browsers" },
+    { icon: String.fromCodePoint(0xf08c6), color: "apps/applications-webapps", label: "Web apps", hint: "Pick a web app",        group: "webapps" },
+    { icon: String.fromCodePoint(0xf0770), color: "places/folder", label: "Files",    hint: "Open the file manager", command: "omarchy-launch-nautilus" },
+    { icon: String.fromCodePoint(0xf003b), color: "apps/appgrid", label: "Apps",     hint: "Pick an app to open",   command: "omarchy-menu toggle apps" },
+    { icon: String.fromCodePoint(0xf0493), color: "apps/org.gnome.Settings", label: "Settings", hint: "Open the Omarchy menu", command: "omarchy-menu toggle" }
   ]
   // (The Utils wrench moved to the right of the bar as its own widget, guy.utils.)
 
@@ -63,12 +73,12 @@ BarWidget {
     var appsRevision = DesktopEntries.applications.values.length
     var has = function(c) { return root.aiCommands.indexOf(c) !== -1 }
     var out = []
-    out.push({ glyph: String.fromCodePoint(0xf018d), label: "Claude",
+    out.push({ glyph: String.fromCodePoint(0xf018d), color: "apps/utilities-terminal", label: "Claude",
                command: has("claude") ? "xdg-terminal-exec claude" : "omarchy-launch-webapp https://claude.ai/" })
     out.push({ glyph: "", glyphFont: "omarchy", label: "ChatGPT",
                command: DesktopEntries.byId("chatgpt") ? "uwsm-app -- chatgpt" : "omarchy-launch-webapp https://chatgpt.com/" })
-    if (has("codex")) out.push({ glyph: String.fromCodePoint(0xf0169), label: "Codex", command: "xdg-terminal-exec codex" })
-    if (has("opencode")) out.push({ glyph: String.fromCodePoint(0xf018d), label: "OpenCode", command: "xdg-terminal-exec opencode" })
+    if (has("codex")) out.push({ glyph: String.fromCodePoint(0xf0169), color: "apps/utilities-terminal", label: "Codex", command: "xdg-terminal-exec codex" })
+    if (has("opencode")) out.push({ glyph: String.fromCodePoint(0xf018d), color: "apps/utilities-terminal", label: "OpenCode", command: "xdg-terminal-exec opencode" })
     return out
   }
 
@@ -271,6 +281,12 @@ BarWidget {
     return entry && entry.name ? entry.name : id
   }
 
+  function windowIconName(w) {
+    var id = String(w.appId || "")
+    var entry = DesktopEntries.heuristicLookup(id)
+    return entry && entry.icon ? String(entry.icon) : id
+  }
+
   function windowIcon(w) {
     var id = String(w.appId || "")
     var entry = DesktopEntries.heuristicLookup(id)
@@ -359,12 +375,26 @@ BarWidget {
         id: pinnedTile
         required property var modelData
         bar: root.bar
-        text: modelData.icon
+        // The glyph shows only if the colored icon is missing.
+        text: pinnedColor.status === Image.Ready ? "" : modelData.icon
+        hasVisualContent: pinnedColor.status === Image.Ready
         fontFamily: modelData.iconFont || (root.bar ? root.bar.fontFamily : Style.font.family)
         active: root.flyoutOpen && root.flyoutTile === pinnedTile
         useActiveColor: false
         tooltipText: root.flyoutOpen && root.flyoutTile === pinnedTile ? "" : modelData.label + ": " + modelData.hint
         onPressed: function(b) { if (b === Qt.LeftButton) root.buttonPressed(pinnedTile, modelData) }
+
+        Image {
+          id: pinnedColor
+          anchors.centerIn: parent
+          width: root.iconSize + 2
+          height: root.iconSize + 2
+          sourceSize.width: 48
+          sourceSize.height: 48
+          smooth: true
+          source: pinnedTile.modelData.color ? root.colorIcon(pinnedTile.modelData.color) : ""
+          visible: status === Image.Ready
+        }
       }
     }
 
@@ -399,11 +429,24 @@ BarWidget {
           else if (b === Qt.LeftButton) root.windowClicked(windowTile.modelData)
         }
 
-        IconImage {
+        Image {
+          id: windowColor
           anchors.centerIn: parent
           opacity: windowTile.modelData.minimized ? 0.4 : 1
+          width: root.iconSize + 2
+          height: root.iconSize + 2
+          sourceSize.width: 48
+          sourceSize.height: 48
+          smooth: true
+          source: root.colorIcon("apps/" + root.aliasIcon(root.windowIconName(windowTile.modelData)))
+          visible: status === Image.Ready
+        }
+        IconImage {
+          anchors.centerIn: parent
+          visible: windowColor.status !== Image.Ready
+          opacity: windowTile.modelData.minimized ? 0.4 : 1
           implicitSize: root.iconSize + 2
-          source: root.windowIcon(windowTile.modelData)
+          source: visible ? root.windowIcon(windowTile.modelData) : ""
         }
 
         // The window in front gets a line under its icon.
@@ -480,8 +523,23 @@ BarWidget {
           radius: 6
           color: choiceMouse.pressed ? Style.pressedFill : (choiceMouse.containsMouse ? Style.hoverFill : "transparent")
 
+          // Colored icon (Papirus); the glyph below shows only if it is missing.
+          Image {
+            id: tileColor
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: Style.space(8)
+            width: Style.space(30)
+            height: Style.space(30)
+            sourceSize.width: 48
+            sourceSize.height: 48
+            smooth: true
+            source: choice.modelData.color ? root.colorIcon(choice.modelData.color) : (choice.modelData.entryIcon ? root.colorIcon("apps/" + root.aliasIcon(String(choice.modelData.entryIcon))) : "")
+            visible: status === Image.Ready
+          }
+
           IconImage {
-            visible: !!(choice.modelData.entryIcon || choice.modelData.iconSource)
+            visible: !!(choice.modelData.entryIcon || choice.modelData.iconSource) && tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: Style.space(8)
@@ -490,7 +548,7 @@ BarWidget {
           }
 
           Text {
-            visible: !(choice.modelData.entryIcon || choice.modelData.iconSource)
+            visible: !(choice.modelData.entryIcon || choice.modelData.iconSource) && tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: Style.space(8)

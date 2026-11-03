@@ -1,4 +1,6 @@
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
@@ -19,20 +21,64 @@ BarWidget {
   readonly property var leftRows: [
     { header: "Left side: your taskbar" },
     { icon: glyph(0xf06a9), name: "AI meter (robot)", what: "Next to the brain: how much of each AI plan you've used, like a fuel gauge" },
-    { icon: glyph(0xf003b), name: "Pinned buttons",  what: "AI (brain), Browsers and Web apps pop up a row of choices: click one to open it. Files and Apps open straight away; Settings opens the full Omarchy menu" },
-    { icon: glyph(0xf05af), name: "Open windows",    what: "Click to bring up, click again to minimize. Right-click to minimize, add to Favorites or close" }
+    { icon: glyph(0xf003b), color: "apps/gbrainy", name: "Pinned buttons",  what: "AI (brain), Browsers and Web apps pop up a row of choices: click one to open it. Files and Apps open straight away; Settings opens the full Omarchy menu" },
+    { icon: glyph(0xf05af), name: "Open windows",    what: "Click to bring up, click again to minimize. Right-click to minimize, add to Favorites or close" },
+    { header: "Built in" },
+    { icon: glyph(0xf09d1), color: "apps/braindump", name: "Memory", what: root.memoryWhat }
   ]
+
+  // Memory row: live numbers from `omnemo stats --json`, read each time the
+  // guide opens. No numbers (Omnemo missing, slow or broken) = the words only.
+  readonly property string memoryAbout: "Your AI helpers share one memory on this computer. Just talk to them and they remember; say \"forget that\" to remove something."
+  property string memoryStats: ""
+  readonly property string memoryWhat: memoryStats ? memoryStats + " " + memoryAbout : memoryAbout
+
+  function lastUsed(epoch) {
+    if (!epoch) return ""
+    var then = new Date(epoch * 1000), now = new Date()
+    var day = function(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() }
+    var diff = Math.round((day(now) - day(then)) / 86400000)
+    if (diff === 0) return "last used today at " + Qt.formatTime(then, "h:mm AP")   // local clock, 12-hour
+    if (diff === 1) return "last used yesterday"
+    return "last used on " + Qt.formatDate(then, "MMM d")
+  }
+
+  function memoryLine(text) {
+    try {
+      var s = JSON.parse(String(text || ""))
+      var n = Number(s.memory_count || 0) - Number(s.superseded || 0)
+      var m = Number(s.learned_today || 0)
+      if (!isFinite(n) || !isFinite(m)) return ""
+      if (n <= 0) return "Memory: nothing saved yet."
+      var parts = [n + " saved", m > 0 ? m + " new today" : "none new today"]
+      var used = root.lastUsed(Number(s.last_recall_at || 0))
+      if (used) parts.push(used)
+      return "Memory: " + parts.join(", ") + "."
+    } catch (e) { return "" }
+  }
+
+  Process {
+    id: memoryStatsRead
+    command: ["timeout", "3", Quickshell.env("HOME") + "/.local/bin/omnemo", "stats", "--json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.memoryStats = root.memoryLine(text)
+    }
+    onExited: function(code) { if (code !== 0) root.memoryStats = "" }
+  }
+  onPopupOpenChanged: if (popupOpen && !memoryStatsRead.running) memoryStatsRead.running = true
+  Component.onCompleted: memoryStatsRead.running = true   // so the first open already has numbers
 
   readonly property var rightRows: [
     { header: "Middle: two menus around the ?" },
-    { icon: "Tools", name: "Tools (left of ?)", what: "Calculator, Screenshot (saved in your Pictures folder), Record screen, Color picker, Emoji, Clipboard, Shortcuts, Terminal, Theme, Lock, Restart or shut down" },
-    { icon: "Fav", name: "Favorites (right of ?)", what: "Your favorite apps in one click. Add one: right-click its window on the taskbar. Remove one: right-click it here" },
+    { icon: "Tools", color: "apps/applications-utilities", name: "Tools (left of ?)", what: "Calculator, Screenshot (saved in your Pictures folder), Record screen, Color picker, Emoji, Clipboard, Shortcuts, Terminal, Theme, Lock, Restart or shut down" },
+    { icon: "Fav", color: "status/starred", name: "Favorites (right of ?)", what: "Your favorite apps in one click. Add one: right-click its window on the taskbar. Remove one: right-click it here" },
     { header: "Right side" },
     { icon: "\uf021",        name: "Update",          what: "Shows only when an Omarchy update is ready: click it to install" },
     { icon: glyph(0xf0141), name: "Hidden icons (‹)", what: "Click to show the icons kept out of the way, and apps running in the background" },
-    { icon: glyph(0xf05b7), name: "Settings (wrench)", what: "Wi-Fi, Bluetooth, Display, Sound, Weather, World clocks and Calendar, by name" },
+    { icon: glyph(0xf05b7), color: "apps/preferences-system", name: "Settings (wrench)", what: "Wi-Fi, Bluetooth, Display, Sound, Weather, World clocks and Calendar, by name" },
     { icon: glyph(0xf057e), name: "Sound",           what: "Click for volume, speakers and microphone; scroll on it to change the volume" },
-    { icon: glyph(0xf0954), name: "Clock", what: "Hover for the day, date and time. Click for the calendar" },
+    { icon: glyph(0xf0954), color: "apps/org.gnome.clocks", name: "Clock", what: "Hover for the day, date and time. Click for the calendar" },
     { icon: glyph(0xf0425), name: "Power",           what: "Battery, power mode, lock, restart, shut down" }
   ]
 
@@ -41,6 +87,9 @@ BarWidget {
 
   property bool popupOpen: false
   function close() { popupOpen = false }
+  // `omarchy-shell shell summon guy.help {}` opens this menu (for shortcuts and help).
+  function open() { popupOpen = true }
+  readonly property bool opened: popupOpen
 
   // Hover labels for Omarchy's own icons, which come without any. This is a
   // deliberate reach past the plugin API: the labels are set on the live
@@ -97,10 +146,24 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.glyph(0xf02d7)
+    text: colorIcon.status === Image.Ready ? "" : root.glyph(0xf02d7)
+    hasVisualContent: colorIcon.status === Image.Ready
     active: root.popupOpen
     tooltipText: root.popupOpen ? "" : "How to use this taskbar: click for a guide to every icon"
     onPressed: function(b) { root.popupOpen = !root.popupOpen }
+
+    // Colored icon (Papirus); the glyph above shows only if it is missing.
+    Image {
+      id: colorIcon
+      anchors.centerIn: parent
+      width: 22
+      height: 22
+      sourceSize.width: 48
+      sourceSize.height: 48
+      smooth: true
+      source: "file://" + Quickshell.env("HOME") + "/.local/share/omnemo-os/icons/48x48/apps/help-browser.svg"
+      visible: status === Image.Ready
+    }
   }
 
   // One line of the guide: a header, or an icon with its name and what it does.
@@ -127,9 +190,22 @@ BarWidget {
       font.bold: true
     }
 
+    Image {
+      id: rowColor
+      visible: !entry.isHeader && status === Image.Ready
+      x: (Style.space(40) - width) / 2
+      width: Style.font.body + 6
+      height: Style.font.body + 6
+      sourceSize.width: 48
+      sourceSize.height: 48
+      smooth: true
+      source: !entry.isHeader && entry.modelData.color ? "file://" + Quickshell.env("HOME") + "/.local/share/omnemo-os/icons/48x48/" + entry.modelData.color + ".svg" : ""
+    }
+
     Text {
       id: iconText
       visible: !entry.isHeader
+      opacity: rowColor.visible ? 0 : 1
       width: Style.space(40)
       horizontalAlignment: Text.AlignHCenter
       textFormat: Text.PlainText

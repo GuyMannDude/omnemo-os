@@ -25,11 +25,11 @@ cd omnemo-os
 bin/omnemo-os install --allow-rc
 ```
 
-`--allow-rc` is only needed while 4.5 is a test version. The memory part downloads a few hundred MB, so it needs the internet and a couple of minutes; if you are offline, the desktop still installs and `bin/omnemo-os repair` adds the memory later. When it finishes, start a **new** session of your AI helper (Claude, Codex, ...) and it shares one memory with the others.
+`--allow-rc` is only needed while 4.5 is a test version. The memory part downloads a few hundred MB and the colored bar icons about 33 MB, so it needs the internet and a couple of minutes; if you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later. When it finishes, start a **new** session of your AI helper (Claude, Codex, ...) and it shares one memory with the others.
 
-Afterwards, from the `omnemo-os` folder: `bin/omnemo-os status` shows what is installed (memory included) and flags anything an Omarchy update reset; `bin/omnemo-os repair` puts it back; `bin/omnemo-os uninstall` puts everything back exactly as it was, except your memories.
+Afterwards, in any new Terminal: `omnemo-os status` shows what is installed (memory and icons included) and flags anything an Omarchy update reset; `omnemo-os repair` puts it back; `omnemo-os uninstall` puts everything back exactly as it was. You can delete the downloaded `omnemo-os` folder once it's installed.
 
-Your memories are yours. Uninstall removes the memory program it installed but never your memories: they stay in `~/.local/share/omnemo`, and uninstall tells you where. Install again later and they are picked up where you left off. To delete them yourself, copy that folder somewhere safe, then delete it. (A keep-or-start-fresh question is coming in 0.9.2.)
+Your memories are yours. Click **?** on the bar to see how many your AI helpers have saved. If memories from before are found when you install, you're asked "Keep them?", and uninstall asks "Keep your memories?" too. Pressing Enter always keeps them. Deleting takes typing the word DELETE, and a copy is saved first (`~/omnemo-memories-<date>.tar.gz`). Kept memories stay in `~/.local/share/omnemo`, and a later install picks them up where you left off.
 
 ## Share your ideas
 
@@ -41,13 +41,13 @@ Omnemo OS is brand new, and it's being shaped by the people who use it. You don'
 
 Problems or confusion: on the GitHub page click Issues → New issue → "Something went wrong (or confused me)". Ideas: click Discussions → Ideas. (You'll need a free GitHub account.) Or ask your AI assistant to write it up for you and paste it there. Every message gets read.
 
-If something breaks badly, `bin/omnemo-os uninstall` puts your desktop back exactly the way Omarchy had it.
+If something breaks badly, `omnemo-os uninstall` puts your desktop back exactly the way Omarchy had it.
 
 ## What's inside (you can skip this)
 
 - `MANIFEST.md` — every file and setting the edition touches, as written on the test laptop.
 - `INSTALLER-NOTES.md` — installer-side notes.
-- `bin/omnemo-os` (`install` / `uninstall` / `status` / `repair`) — the edition layer; `bin/omnemo-os-install` and `-uninstall` are the same script by another name.
-- `plugins/` — the edition's six bar plugins. `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running).
+- `bin/omnemo-os` (`install` / `uninstall` / `status` / `repair`) — the edition layer; install copies it to `~/.local/share/omnemo-os/app` and links `~/.local/bin/omnemo-os` to it.
+- `plugins/` — the edition's six bar plugins. `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running) and `omnemo-icons-update`, which fetches the colored icons ([Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme), GPL-3.0, downloaded from its makers, never bundled here). Run `omnemo-icons-update` any time for the newest set.
 
 Omnemo OS is built on Omarchy (MIT license). "Omarchy" is a pending trademark of its owners. This project is not affiliated with or endorsed by them.

@@ -21,7 +21,7 @@ BarWidget {
   property var pinnedIds: []
   readonly property var tools: {
     var appsRevision = DesktopEntries.applications.values.length
-    var out = [{ glyph: glyph(0xf003b), label: "All apps", command: "omarchy-menu toggle apps" }]
+    var out = [{ glyph: glyph(0xf003b), color: "apps/appgrid", label: "All apps", command: "omarchy-menu toggle apps" }]
     for (var i = 0; i < root.pinnedIds.length; i++) {
       var entry = DesktopEntries.byId(root.pinnedIds[i])
       if (!entry) continue
@@ -41,7 +41,14 @@ BarWidget {
   }
 
   property bool popupOpen: false
+
+  // Omarchy's own apps have no Papirus icon under their own names.
+  readonly property var colorAlias: ({ "omacalc": "accessories-calculator", "omawrite": "accessories-text-editor" })
+  function aliasIcon(name) { return root.colorAlias[name] || name }
   function close() { popupOpen = false }
+  // `omarchy-shell shell summon guy.favorites {}` opens this menu (for shortcuts and help).
+  function open() { popupOpen = true }
+  readonly property bool opened: popupOpen
 
   // A right-clicked favorite asks "Remove?" and goes on the next click; moving
   // off it, or closing the pop-up, changes nothing.
@@ -122,8 +129,23 @@ BarWidget {
           radius: 6
           color: choiceMouse.pressed ? Style.pressedFill : (choiceMouse.containsMouse ? Style.hoverFill : "transparent")
 
+          // Colored icon (Papirus); the glyph below shows only if it is missing.
+          Image {
+            id: tileColor
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: Style.space(8)
+            width: Style.space(30)
+            height: Style.space(30)
+            sourceSize.width: 48
+            sourceSize.height: 48
+            smooth: true
+            source: choice.modelData.color ? "file://" + Quickshell.env("HOME") + "/.local/share/omnemo-os/icons/48x48/" + choice.modelData.color + ".svg" : (choice.modelData.entryIcon ? "file://" + Quickshell.env("HOME") + "/.local/share/omnemo-os/icons/48x48/" + "apps/" + root.aliasIcon(String(choice.modelData.entryIcon)) + ".svg" : "")
+            visible: status === Image.Ready
+          }
+
           IconImage {
-            visible: !!choice.modelData.entryIcon
+            visible: !!choice.modelData.entryIcon && tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: Style.space(8)
@@ -132,7 +154,7 @@ BarWidget {
           }
 
           Text {
-            visible: !choice.modelData.entryIcon
+            visible: !choice.modelData.entryIcon && tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: Style.space(8)

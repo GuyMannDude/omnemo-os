@@ -1,5 +1,5 @@
 # Omnemo OS — edition inventory (built on Omarchy, MIT)
-v0.9.0 Public Preview · updated 2026-10-30 22:15 PDT · base: Omarchy 4.5.0rc2 (rc channel; stable gate = 4.5.0-1)
+v0.9.2 Public Preview · updated 2026-11-03 PST · base: Omarchy 4.5.0rc2 (rc channel; stable gate = 4.5.0-1)
 Rule: a layer on stock Omarchy, no fork. Everything below is user-level (no sudo), backed up at install, and put back byte-for-byte by `omnemo-os uninstall` (cold run #7: every path identical, content AND file modes).
 
 ## 1. Plugins we ship (~/.config/omarchy/plugins/)
@@ -7,12 +7,13 @@ Rule: a layer on stock Omarchy, no fork. Everything below is user-level (no sudo
 |---|---|---|
 | guy.taskbar | left | AI, Browsers, Web apps pop up choices; Files, Apps, Settings (= the full Omarchy menu); one icon per open window (click = focus/minimize/restore; right-click = Minimize / Close / Add to or Remove from Favorites). When windows don't fit, the rest go behind a "+N" button (the active window always stays visible). AI entries only show what works: Claude = CLI or claude.ai web app, ChatGPT = desktop app or chatgpt.com web app, Codex/OpenCode only when installed |
 | guy.tools | center, left of ? | "Tools ▴": Calculator, Screenshot (saved in Pictures), Record screen, Color picker, Emoji, Clipboard, Keyboard shortcuts, Terminal, Theme & wallpaper, Lock, Restart or shut down |
-| guy.help | center | "?": a plain-words guide to every bar icon. Also gives Omarchy's unlabeled stock icons hover labels at runtime (see §6). Shows an Update row only when an update is ready |
+| guy.help | center | "?": a plain-words guide to every bar icon, plus a "Built in" Memory row with live numbers (`omnemo stats --json`, read at load and on each open, 3 s cap, words only when unavailable; local 12-hour time). Also gives Omarchy's unlabeled stock icons hover labels at runtime (see §6). Shows an Update row only when an update is ready |
 | guy.favorites | center, right of ? | "Favorites ▴": All apps + pinned apps (read live via `omarchy dock pinned`). Right-click a tile → "Remove?" → click to unpin |
 | guy.utils | right, after the ‹ | Wrench: pops up Wi-Fi & internet, Bluetooth, Display, Sound, Weather, World clocks, Calendar and All settings, each with its name. Opens Omarchy's own panels (see §6) |
 | guy.clock | right, before power | Clock icon; hover = day/date/time; click = month calendar |
 Stock widgets placed by us: omarchy.agents (AI usage meter) at the far left; omarchy.tray (‹) on the right, holding Network, Bluetooth, Display, Weather and World clocks in its drawer, plus any background-app tray icons.
 Not shipped: omnemo.memory (Guy, 10-30: "User does not need a memory display"), guy.start, guy.apps, guy.dock.
+Every edition plugin shows a colored Papirus icon (§3a) and falls back to its one-color glyph when the icon is missing. Tools, wrench, Favorites and ? can be opened with `omarchy-shell shell summon <id> {}` (closed with `shell hide <id>`).
 Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 
 ## 2. Settings we change
@@ -37,9 +38,18 @@ Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 | Text files open in Writer | ~/.config/mimeapps.list (`xdg-mime default omawrite.desktop text/plain`) | stock opens .txt in nvim inside a terminal |
 | Icon-set stand-ins | ~/.local/share/icons/Yaru-gray, Yaru-grey (index.theme, Inherits=Yaru,hicolor) | stock White and Vantablack themes name icon sets that aren't installed, so app icons vanish (upstream report to file) |
 
+## 3a. Colored icons (0.9.2)
+| What | Where | Notes |
+|---|---|---|
+| Papirus 48x48 set (GPL-3.0) | ~/.local/share/omnemo-os/icons (+ VERSION, LICENSE) | downloaded at install from GitHub, release 20260801, sha256 646f622e…08f9 checked; ~33 MB download, 56 MB on disk. Our own folder, not an icon theme: nothing else on the computer changes |
+| Updater | ~/.local/bin/omnemo-icons-update | `--pin TAG SHA` (install), plain = newest release. Checks every icon the bar names, refuses non-SVG files and links that point outside the set, swaps the folder in whole. No timer (Guy: no rush; the Sunday scout flags new releases) |
+Offline install: record `icons: failed`, the bar shows glyphs, status flags it, repair downloads. Uninstall removes the folder only if the record says we downloaded it (`icons_was: present` = left alone).
+
 ## 4. Commands
 `omnemo-os install [--allow-rc]` · `uninstall` · `status` · `repair`
-- status flags when an Omarchy update reset the friendly names (omarchy-refresh-applications re-copies foot.desktop) or the guard is off.
+- install copies bin/, plugins/, system/ and layout.json to ~/.local/share/omnemo-os/app and links ~/.local/bin/omnemo-os there (on PATH in Omarchy's bash envs), so the clone can be deleted. Uninstall removes both last (record `command_link: true`); status flags a broken link, repair relinks.
+- Omarchy's "omarchy-shell is not responding" line from a busy shell is hidden on the first try of each shell step; it shows only if the retry also fails.
+- status also reports the icons; flags when an Omarchy update reset the friendly names (omarchy-refresh-applications re-copies foot.desktop) or the guard is off.
 - repair puts both back and checks its own result; safe to run any time, any number of times.
 
 ## 4a. Omnemo memory (0.9.1)
@@ -48,7 +58,7 @@ Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 - Offline/failure: the desktop install goes on, record says `omnemo: failed`, status flags it, repair retries.
 - uninstall (only when the record says we installed it): `omnemo disconnect --all-pieces`, then remove the link and the venv. The store ~/.local/share/omnemo (memories + skill copy) is NEVER removed; uninstall prints where it is. A later install finds and keeps it.
 - Cold run #8 (10-31): install 1m24s; save + recall from the CLI, a new `claude -p` and `codex exec`; serve RSS 56 MB idle, 329 MB with the model loaded; uninstall byte+mode identical (all edition paths, every Omnemo path, the four harness config files, claude's mcpServers, the warm unit) except the store, which is the one intended leftover; reinstall over a kept store recalls the old memory.
-- 0.9.2: keep-or-fresh prompt (typed DELETE, tar first), `?` Memory row with live stats, ~/.local/bin/omnemo-os on PATH.
+- Keep or fresh (0.9.2, CC #5730): install asks "Found N memories from before. Keep them? [Y/n]" when it installs Omnemo onto an existing store; uninstall asks "Keep your memories? [Y/n]" when it removes the Omnemo it installed. Enter, any answer but n, no terminal, or anything but a typed DELETE at the second question = keep. Delete = tar to ~/omnemo-memories-<date>.tar.gz, `tar -t` check, then remove; a fresh install then reruns `omnemo setup`. Omnemo that was there before Omnemo OS is never asked about or touched.
 
 ## 5. Not touched
 No system files, no sudo, no Omarchy source edits, no desktop icons (Guy's veto). One keybinding is re-pointed (Super+Alt+Space); nothing else.
@@ -69,4 +79,4 @@ Window address validated before every dispatch; launches built as argv; help wal
 - omarchy-update ran clean with Omnemo OS on; an Omarchy version bump is untested until 4.5 stable, and status/repair is the backstop (foot.desktop reset is the known case).
 - Chrome site notifications arrive as critical and stay until dismissed; turn them off per site in Chrome. Upstream suggestion drafted, unposted (~/omnemo-os-pending/upstream-issue-notifications.md).
 - quickshell logs "Module path ... is outside of the config folder" for every user plugin: harmless, stock behaviour.
-- Plugin versions all 0.1.0; bump when packaging.
+- Plugin manifests at 0.9.2.

@@ -64,7 +64,8 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: String.fromCodePoint(0xf0954)
+    text: colorIcon.status === Image.Ready ? "" : String.fromCodePoint(0xf0954)
+    hasVisualContent: colorIcon.status === Image.Ready
     active: root.popupOpen
     useActiveColor: false
     tooltipText: root.popupOpen ? "" : Qt.formatDateTime(root.now, "dddd, MMMM d  ·  h:mm AP") + "  · click for the calendar"
@@ -72,6 +73,19 @@ BarWidget {
       if (b !== Qt.LeftButton) return
       if (root.popupOpen) root.close()
       else root.open()
+    }
+
+    // Colored icon (Papirus); the glyph above shows only if it is missing.
+    Image {
+      id: colorIcon
+      anchors.centerIn: parent
+      width: 22
+      height: 22
+      sourceSize.width: 48
+      sourceSize.height: 48
+      smooth: true
+      source: "file://" + Quickshell.env("HOME") + "/.local/share/omnemo-os/icons/48x48/apps/org.gnome.clocks.svg"
+      visible: status === Image.Ready
     }
   }
 

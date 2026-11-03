@@ -21,18 +21,21 @@ BarWidget {
   function panel(id) { return ["omarchy-shell", "shell", "summon", id, "{}"] }
 
   readonly property var tools: [
-    { glyph: glyph(0xf05a9), label: "Wi-Fi & internet", command: root.panel("omarchy.network") },
-    { glyph: glyph(0xf00af), label: "Bluetooth",        command: root.panel("omarchy.bluetooth") },
-    { glyph: glyph(0xf0379), label: "Display",          command: root.panel("omarchy.monitor") },
-    { glyph: glyph(0xf057e), label: "Sound",            command: root.panel("omarchy.audio") },
-    { glyph: glyph(0xf0595), label: "Weather",          command: root.panel("omarchy.weather") },
-    { glyph: glyph(0xf01e7), label: "World clocks",     command: root.panel("omarchy.elsewhen") },
-    { glyph: glyph(0xf00ed), label: "Calendar",         command: root.panel("guy.clock") },
-    { glyph: glyph(0xf0493), label: "All settings",     command: ["omarchy-menu", "toggle"] }
+    { glyph: glyph(0xf05a9), color: "apps/nm-device-wireless", label: "Wi-Fi & internet", command: root.panel("omarchy.network") },
+    { glyph: glyph(0xf00af), color: "apps/blueman", label: "Bluetooth",        command: root.panel("omarchy.bluetooth") },
+    { glyph: glyph(0xf0379), color: "devices/video-display", label: "Display",          command: root.panel("omarchy.monitor") },
+    { glyph: glyph(0xf057e), color: "apps/preferences-desktop-sound", label: "Sound",            command: root.panel("omarchy.audio") },
+    { glyph: glyph(0xf0595), color: "apps/org.gnome.Weather", label: "Weather",          command: root.panel("omarchy.weather") },
+    { glyph: glyph(0xf01e7), color: "apps/org.gnome.clocks", label: "World clocks",     command: root.panel("omarchy.elsewhen") },
+    { glyph: glyph(0xf00ed), color: "apps/org.gnome.Calendar", label: "Calendar",         command: root.panel("guy.clock") },
+    { glyph: glyph(0xf0493), color: "apps/org.gnome.Settings", label: "All settings",     command: ["omarchy-menu", "toggle"] }
   ]
 
   property bool popupOpen: false
   function close() { popupOpen = false }
+  // `omarchy-shell shell summon guy.utils {}` opens this menu (for shortcuts and help).
+  function open() { popupOpen = true }
+  readonly property bool opened: popupOpen
 
   function run(command) {
     // A list that came through a Repeater's modelData is a Qt list; copy it
@@ -49,11 +52,25 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.glyph(0xf05b7)
+    text: colorIcon.status === Image.Ready ? "" : root.glyph(0xf05b7)
+    hasVisualContent: colorIcon.status === Image.Ready
     active: root.popupOpen
     useActiveColor: false
     tooltipText: root.popupOpen ? "" : "Settings: Wi-Fi, Bluetooth, Display, Sound, Weather, World clocks, Calendar"
     onPressed: function(b) { if (b === Qt.LeftButton) root.popupOpen = !root.popupOpen }
+
+    // Colored icon (Papirus); the glyph above shows only if it is missing.
+    Image {
+      id: colorIcon
+      anchors.centerIn: parent
+      width: 22
+      height: 22
+      sourceSize.width: 48
+      sourceSize.height: 48
+      smooth: true
+      source: "file://" + Quickshell.env("HOME") + "/.local/share/omnemo-os/icons/48x48/apps/preferences-system.svg"
+      visible: status === Image.Ready
+    }
   }
 
   PopupCard {
@@ -86,7 +103,23 @@ BarWidget {
           radius: 6
           color: choiceMouse.pressed ? Style.pressedFill : (choiceMouse.containsMouse ? Style.hoverFill : "transparent")
 
+          // Colored icon (Papirus); the glyph below shows only if it is missing.
+          Image {
+            id: tileColor
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: Style.space(8)
+            width: Style.space(30)
+            height: Style.space(30)
+            sourceSize.width: 48
+            sourceSize.height: 48
+            smooth: true
+            source: choice.modelData.color ? "file://" + Quickshell.env("HOME") + "/.local/share/omnemo-os/icons/48x48/" + choice.modelData.color + ".svg" : ""
+            visible: status === Image.Ready
+          }
+
           Text {
+            visible: tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: Style.space(8)

@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# omnemo-icons-update — keep the bar's colored icons current.
+# Fetches the latest Papirus release (GPL-3.0, github.com/PapirusDevelopmentTeam),
+# keeps only the 48x48 set the bar uses, checks it, then swaps it in whole.
+# User-level, no sudo. Safe to run any time; does nothing when already current.
+# --force re-downloads even when current.
+# --pin TAG SHA256: fetch exactly that release and refuse it unless the download
+#   matches the checksum (what `omnemo-os install` uses: a reviewed release).
+set -euo pipefail
+DEST="${XDG_DATA_HOME:-$HOME/.local/share}/omnemo-os/icons"
+REPO="PapirusDevelopmentTeam/papirus-icon-theme"
+# Every icon the bar asks for by name. A release without them is not used.
+NEEDED=(apps/accessories-calculator apps/accessories-text-editor apps/appgrid
+        apps/applications-utilities apps/applications-webapps apps/applications-webbrowsers
+        apps/blueman apps/braindump apps/gbrainy apps/gpaste apps/gpick apps/help-browser apps/nm-device-wireless
+        apps/org.gnome.Calendar apps/org.gnome.Characters apps/org.gnome.clocks
+        apps/org.gnome.Screenshot apps/org.gnome.Settings apps/org.gnome.Weather
+        apps/preferences-desktop-keyboard-shortcuts apps/preferences-desktop-sound
+        apps/preferences-desktop-wallpaper apps/preferences-system apps/simplescreenrecorder
+        apps/system-lock-screen apps/system-shutdown apps/utilities-terminal
+        devices/video-display places/folder status/starred)
+say() { printf 'icons: %s\n' "$*"; }
+die() { printf 'icons: %s\n' "$*" >&2; exit 1; }
+
+force=0 pin_sha=""
+case "${1:-}" in
+  --force) force=1 ;;
+  --pin) tag="${2:-}"; pin_sha="${3:-}"
+         [[ $pin_sha =~ ^[0-9a-f]{64}$ ]] || die "usage: omnemo-icons-update --pin TAG SHA256" ;;
+  "") ;;
+  *) die "usage: omnemo-icons-update [--force | --pin TAG SHA256]" ;;
+esac
+if [[ -z $pin_sha ]]; then
+  tag="$(curl -fsS -m 20 "https://api.github.com/repos/$REPO/releases/latest" | jq -r .tag_name)" ||
+    die "could not reach GitHub (offline?); keeping the icons you have"
+fi
+[[ $tag =~ ^[0-9]{8}$ ]] || die "unexpected release name '$tag'; keeping the icons you have"
+have="$(cat "$DEST/VERSION" 2>/dev/null || true)"
+if [[ $tag == "$have" && $force == 0 ]]; then say "up to date (Papirus $tag)"; exit 0; fi
+
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+say "downloading Papirus $tag"
+curl -fsSL -m 600 -o "$tmp/p.tar.gz" "https://github.com/$REPO/archive/refs/tags/$tag.tar.gz" ||
+  die "download failed (offline?); keeping the icons you have"
+if [[ -n $pin_sha ]]; then
+  got="$(sha256sum "$tmp/p.tar.gz" | cut -d' ' -f1)"
+  [[ $got == "$pin_sha" ]] || die "Papirus $tag download does not match its checksum; not using it"
+fi
+mkdir "$tmp/x"
+tar xzf "$tmp/p.tar.gz" -C "$tmp/x" --strip-components=2 "papirus-icon-theme-$tag/Papirus/48x48"
+tar xzf "$tmp/p.tar.gz" -C "$tmp/x" --strip-components=1 "papirus-icon-theme-$tag/LICENSE"
+for i in "${NEEDED[@]}"; do [[ -e "$tmp/x/48x48/$i.svg" ]] || die "release $tag lacks $i; keeping the icons you have"; done
+# Only icon files and links inside the set: nothing that could run.
+bad="$(find "$tmp/x/48x48" -type f ! -name '*.svg' | head -1)"
+[[ -z $bad ]] || die "unexpected file in release: $bad; keeping the icons you have"
+root="$(realpath "$tmp/x/48x48")"
+while IFS= read -r -d '' l; do
+  t="$(realpath -m "$l")"; [[ $t == "$root"/* ]] || die "link points outside the icon set: $l; keeping the icons you have"
+done < <(find "$tmp/x/48x48" -type l -print0)
+printf '%s\n' "$tag" >"$tmp/x/VERSION"
+
+mkdir -p "$(dirname "$DEST")"
+rm -rf "$DEST.new" "$DEST.old"
+mv "$tmp/x" "$DEST.new"
+[[ -d $DEST ]] && mv "$DEST" "$DEST.old"
+mv "$DEST.new" "$DEST"
+rm -rf "$DEST.old"
+say "now Papirus $tag${have:+ (was $have)}; restart the bar to see new icons: omarchy restart shell"

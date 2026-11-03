@@ -7,8 +7,9 @@
 # what install created.
 set -euo pipefail
 
-VERSION="0.9.1"
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VERSION="0.9.2"
+# Follow the ~/.local/bin/omnemo-os link back to the installed copy.
+REPO_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 PLUGIN_SRC="$REPO_DIR/plugins"
 LAYOUT_JSON="$REPO_DIR/layout.json"
 
@@ -151,12 +152,13 @@ wait_shell() {
   done
 }
 shell_step() {
-  local try
-  for try in 1 2; do
-    wait_shell
-    "$@" && return 0
-    sleep 2
-  done
+  # The first try runs quietly: a busy shell prints "omarchy-shell is not
+  # responding", which alarms people for nothing when the retry then works.
+  wait_shell
+  "$@" 2>/dev/null && return 0
+  sleep 2
+  wait_shell
+  "$@" && return 0
   die "'$*' failed twice; run 'omnemo-os uninstall' to undo what was applied"
 }
 
@@ -170,6 +172,7 @@ APPS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 ICONS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons"
 UNITS_DIR="$CFG/systemd/user"
 GUARD="$HOME/.local/bin/omnemo-one-bar"
+ICON_UPDATER="$HOME/.local/bin/omnemo-icons-update"
 MIMEAPPS="$CFG/mimeapps.list"
 NAME_MARK="# omnemo-os: friendly name (omnemo-os repair puts it back)"
 # Omarchy's white and vantablack themes name these icon sets; neither is
@@ -183,7 +186,7 @@ FRIENDLY_NAMES=(
 )
 
 managed_files() {
-  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS"
+  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS" "$ICON_UPDATER"
   local shim entry
   for shim in "${ICON_SHIMS[@]}"; do printf '%s\n' "$ICONS_DIR/$shim/index.theme"; done
   for entry in "${FRIENDLY_NAMES[@]}"; do printf '%s\n' "$APPS_DIR/${entry%%|*}.desktop"; done
@@ -266,6 +269,7 @@ install_extras() {
   command -v xdg-mime >/dev/null && [[ -f "$APPS_DIR/omawrite.desktop" || -f /usr/share/applications/omawrite.desktop ]] &&
     xdg-mime default omawrite.desktop text/plain
   install -Dm755 "$SYSTEM_SRC/omnemo-one-bar" "$GUARD"
+  install -Dm755 "$SYSTEM_SRC/omnemo-icons-update" "$ICON_UPDATER"
   install -Dm644 -t "$UNITS_DIR" "$SYSTEM_SRC/omnemo-one-bar.service" "$SYSTEM_SRC/omnemo-one-bar.timer"
   systemctl --user daemon-reload
   systemctl --user enable --now omnemo-one-bar.timer >/dev/null 2>&1 ||
@@ -286,6 +290,43 @@ restart_shell() {
   omarchy restart shell
   [[ -x "$GUARD" ]] && "$GUARD" || true
 }
+
+# --- colored icons (MANIFEST §3a) ---------------------------------------------
+# The bar's colored icons are the Papirus set (GPL-3.0), downloaded at install,
+# not shipped: only the 48x48 folder, into our own folder (never an icon theme,
+# so nothing else on the computer changes). Install takes the reviewed release
+# below and checks it against its checksum. If the download fails the bar keeps
+# its one-color icons; status says so and repair tries again.
+ICONS_TAG="20260801"
+ICONS_SHA256="646f622e9e7e9e65eef9d0ab58999d4920ddb33d98e6a75232627cfe3bd508f9"
+OUR_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/omnemo-os"
+ICON_STORE="$OUR_DATA/icons"
+
+icons_install() {   # prints "installed" or "failed"; never dies
+  say "icons: downloading the colored icons (about 33 MB)" >&2
+  if "$ICON_UPDATER" --pin "$ICONS_TAG" "$ICONS_SHA256" >&2; then echo installed
+  else say "icons: not downloaded (no internet?); the bar uses its one-color icons. Run 'omnemo-os repair' later." >&2; echo failed; fi
+}
+
+# --- the omnemo-os command (MANIFEST §4) ----------------------------------------
+# install copies the edition (this script, plugins, system files, layout) into
+# ~/.local/share/omnemo-os/app and links ~/.local/bin/omnemo-os to it, so
+# status, repair and uninstall work from any terminal, even after the download
+# folder is gone.
+APP_DIR="$OUR_DATA/app"
+CMD_LINK="$HOME/.local/bin/omnemo-os"
+
+app_install() {
+  if [[ "$(readlink -f "$REPO_DIR")" != "$(readlink -f "$APP_DIR" 2>/dev/null)" ]]; then
+    rm -rf -- "${APP_DIR:?}.new"
+    mkdir -p "$APP_DIR.new"
+    cp -r "$REPO_DIR/bin" "$REPO_DIR/plugins" "$REPO_DIR/system" "$LAYOUT_JSON" "$APP_DIR.new/"
+    rm -rf -- "${APP_DIR:?}"; mv "$APP_DIR.new" "$APP_DIR"
+  fi
+  mkdir -p "$(dirname "$CMD_LINK")"
+  ln -sfn "$APP_DIR/bin/omnemo-os" "$CMD_LINK"
+}
+cmd_link_ok() { [[ -L $CMD_LINK && "$(readlink "$CMD_LINK")" == "$APP_DIR/bin/omnemo-os" && -x $APP_DIR/bin/omnemo-os ]]; }
 
 # --- Omnemo memory (MANIFEST §4a) --------------------------------------------
 # install sets up Omnemo the way its INSTALL.md does (venv + link + `omnemo
@@ -340,6 +381,28 @@ omnemo_keep_note() {
   say "Your memories stay in $OMNEMO_STORE. To delete them yourself: copy the folder somewhere safe, then delete it."
 }
 
+# Keep or start fresh (CC #5730). Default is always keep: Enter keeps, no
+# terminal to ask in keeps, anything but the typed word DELETE keeps. Deleting
+# saves a copy first (~/omnemo-memories-<date>.tar.gz) and checks it.
+# "$1" = question; returns 0 when the memories were deleted.
+omnemo_offer_fresh() {
+  local q="$1" n ans copy
+  [[ -d $OMNEMO_STORE ]] || return 1
+  if [[ ! -t 0 ]]; then say "memory: no terminal to ask in; keeping your memories in $OMNEMO_STORE"; return 1; fi
+  n="$(omnemo_memory_count)"; [[ -n $n ]] || n="your"
+  read -r -p "omnemo-os: ${q/N/$n} [Y/n] " ans || ans=""
+  [[ $ans == [nN]* ]] || { say "memory: keeping them"; return 1; }
+  read -r -p "omnemo-os: Delete $n memories in $OMNEMO_STORE? A copy is saved first. Type DELETE to confirm: " ans || ans=""
+  [[ $ans == DELETE ]] || { say "memory: not DELETE, so keeping them"; return 1; }
+  copy="$HOME/omnemo-memories-$(date +%Y-%m-%d).tar.gz"
+  [[ -e $copy ]] && copy="$HOME/omnemo-memories-$(date +%Y-%m-%d-%H%M%S).tar.gz"
+  tar -czf "$copy" -C "$(dirname "$OMNEMO_STORE")" "$(basename "$OMNEMO_STORE")" && tar -tzf "$copy" >/dev/null ||
+    { rm -f -- "$copy"; say "memory: could not save a copy, so nothing was deleted"; return 1; }
+  rm -rf -- "${OMNEMO_STORE:?}"
+  say "memory: deleted. A copy of the old memories is in $copy"
+  return 0
+}
+
 # --- install ----------------------------------------------------------------
 cmd_install() {
   local allow_rc=0
@@ -361,8 +424,9 @@ cmd_install() {
   for f in omnemo-one-bar omnemo-one-bar.service omnemo-one-bar.timer; do
     [[ -f "$SYSTEM_SRC/$f" ]] || die "missing $SYSTEM_SRC/$f"
   done
+  [[ -f "$SYSTEM_SRC/omnemo-icons-update" ]] || die "missing $SYSTEM_SRC/omnemo-icons-update"
   # One rule for every guard file: if any is already there, it is not ours.
-  for f in "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer"; do
+  for f in "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$ICON_UPDATER" "$CMD_LINK" "$APP_DIR"; do
     [[ -e $f || -L $f ]] && die "$f already exists and is not ours; refusing (exact-stock promise)"
   done
 
@@ -413,7 +477,12 @@ cmd_install() {
     say "memory: Omnemo is already on this computer; leaving it exactly as it is"
   else
     om_was="absent"; om_state="$(omnemo_install)"
-    [[ $store_was == present ]] && say "memory: found memories from before in $OMNEMO_STORE; keeping them"
+    if [[ $store_was == present && $om_state == installed ]]; then
+      if omnemo_offer_fresh "Found N memories from before. Keep them?"; then
+        store_was="deleted"
+        "$OMNEMO_VENV/bin/omnemo" setup >/dev/null 2>&1 || say "memory: setup reported a problem; 'omnemo-os repair' runs it again"
+      fi
+    fi
   fi
   tmp="$(mktemp)"
   jq --arg w "$om_was" --arg s "$om_state" --arg st "$store_was" --arg ref "$OMNEMO_REF" \
@@ -451,6 +520,15 @@ cmd_install() {
   install_extras
   say "one-bar guard on; friendly app names, icon sets and Writer for text files set"
 
+  local icons_was="absent" icons_state="untouched"
+  if [[ -f $ICON_STORE/VERSION ]]; then icons_was="present"; say "icons: colored icons already here (Papirus $(cat "$ICON_STORE/VERSION")); keeping them"
+  else icons_state="$(icons_install)"; fi
+  app_install
+  tmp="$(mktemp)"
+  jq --arg w "$icons_was" --arg s "$icons_state" --arg t "$ICONS_TAG" \
+     '. + {icons_was:$w, icons:$s, icons_tag:$t, command_link:true}' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+  say "the omnemo-os command is ready in any new terminal: omnemo-os status | repair | uninstall"
+
   restart_shell
   case "$om_state" in
     installed) say "memory: on. Start a NEW session of your AI helper (claude, codex, ...) and it shares one memory." ;;
@@ -472,8 +550,11 @@ cmd_uninstall() {
 
   # Memory first, while its own uninstaller is still there. Only what we
   # installed (by record); the memories themselves always stay.
+  local fresh=0
   case "$(jq -r '.omnemo // "untouched"' "$RECORD")" in
-    installed|failed) omnemo_remove ;;
+    installed|failed)
+      omnemo_offer_fresh "Keep your memories?" && fresh=1
+      omnemo_remove ;;
   esac
 
   cp -p "$bk/shell.json" "$SHELL_JSON"   # also re-enables omarchy.dock: disabledPlugins lives in shell.json
@@ -506,11 +587,21 @@ cmd_uninstall() {
   while IFS= read -r p; do
     [[ -n "$p" && -d "$PLUGIN_DST/$p" ]] && rm -rf "${PLUGIN_DST:?}/$p"
   done < <(jq -r '.plugins[]' "$RECORD")
+  # Icons only if we downloaded them (by record).
+  [[ "$(jq -r '.icons // "untouched"' "$RECORD")" =~ ^(installed|failed)$ ]] && rm -rf -- "${ICON_STORE:?}" "$ICON_STORE.new" "$ICON_STORE.old"
+  local cmd_link; cmd_link="$(jq -r '.command_link // false' "$RECORD")"
   mv "$RECORD" "$OUR_STATE/uninstalled-$(date -u +%Y%m%dT%H%M%SZ).json"
   omarchy restart shell
   "$REPO_DIR/system/omnemo-one-bar" 2>/dev/null || true   # the installed guard is gone now
   say "restored to stock (shell.json byte-exact from $bk)"
-  omnemo_keep_note
+  (( fresh )) || omnemo_keep_note
+  # Last of all: this script may be running from the copy it removes (bash
+  # keeps reading the open file, so that is safe).
+  if [[ $cmd_link == true ]]; then
+    [[ -L $CMD_LINK && "$(readlink "$CMD_LINK")" == "$APP_DIR/bin/omnemo-os" ]] && rm -f -- "$CMD_LINK"
+    rm -rf -- "${APP_DIR:?}"
+    rmdir "$OUR_DATA" 2>/dev/null || true
+  fi
 }
 
 cmd_status() {
@@ -522,7 +613,7 @@ cmd_status() {
     if [[ -f "$RECORD" && "$(jq -r '.omnemo_was // ""' "$RECORD")" == present ]]; then
       say "memory: on (already installed before Omnemo OS; uninstall leaves it alone)${n:+, $n saved}"
     else say "memory: on${n:+, $n saved}"; fi
-    say "memory: uninstall keeps your memories in $OMNEMO_STORE (no keep-or-fresh question yet)"
+    say "memory: uninstall asks before touching your memories in $OMNEMO_STORE (Enter keeps them)"
   else
     if [[ -f "$RECORD" && "$(jq -r '.omnemo // ""' "$RECORD")" != untouched ]]; then say "memory: OFF -- run 'omnemo-os repair'"; else say "memory: off"; fi
   fi
@@ -530,6 +621,9 @@ cmd_status() {
     local lost; lost="$(missing_friendly_names | tr '\n' ' ')"
     [[ -n $lost ]] && say "an Omarchy update reset the friendly names of: $lost-- run 'omnemo-os repair'"
     systemctl --user is-active --quiet omnemo-one-bar.timer || say "the one-bar guard is off -- run 'omnemo-os repair'"
+    if [[ -f $ICON_STORE/VERSION ]]; then say "icons: colored (Papirus $(cat "$ICON_STORE/VERSION"))"
+    else say "icons: one-color only; the colored icons are missing -- run 'omnemo-os repair'"; fi
+    [[ "$(jq -r '.command_link // false' "$RECORD")" != true ]] || cmd_link_ok || say "the omnemo-os command link is broken -- run 'omnemo-os repair'"
   fi
   return 0
 }
@@ -545,6 +639,15 @@ cmd_repair() {
     "$OMNEMO_VENV/bin/omnemo" setup >/dev/null 2>&1 || say "memory: 'omnemo setup' reported a problem; run it by hand to see which"
   fi
   apply_friendly_names
+  [[ -x $ICON_UPDATER ]] || install -Dm755 "$SYSTEM_SRC/omnemo-icons-update" "$ICON_UPDATER"
+  if [[ ! -f $ICON_STORE/VERSION ]]; then
+    local ist tmp2; ist="$(icons_install)"
+    # Ours from now on unless they were here before Omnemo OS.
+    [[ "$(jq -r '.icons_was // "absent"' "$RECORD")" == present ]] ||
+      { tmp2="$(mktemp)"; jq --arg s "$ist" '.icons = $s' "$RECORD" >"$tmp2" && mv "$tmp2" "$RECORD"; }
+    [[ $ist == installed ]] && restart_shell
+  fi
+  [[ "$(jq -r '.command_link // false' "$RECORD")" != true ]] || cmd_link_ok || app_install
   [[ -f "$UNITS_DIR/omnemo-one-bar.timer" && -x "$GUARD" ]] || {
     install -Dm755 "$SYSTEM_SRC/omnemo-one-bar" "$GUARD"
     install -Dm644 -t "$UNITS_DIR" "$SYSTEM_SRC/omnemo-one-bar.service" "$SYSTEM_SRC/omnemo-one-bar.timer"
@@ -554,7 +657,7 @@ cmd_repair() {
   local lost; lost="$(missing_friendly_names | tr '\n' ' ')"
   [[ -z $lost ]] || die "could not restore the friendly names of: $lost"
   systemctl --user is-active --quiet omnemo-one-bar.timer || die "the one-bar guard would not start (systemctl --user status omnemo-one-bar.timer)"
-  say "friendly names and the one-bar guard are back"
+  say "friendly names, the one-bar guard, colored icons and the omnemo-os command are back"
 }
 
 sub="${1:-}"; case "$(basename "$0")" in omnemo-os-install) sub=install; set -- "$@" ;; omnemo-os-uninstall) sub=uninstall ;; esac
