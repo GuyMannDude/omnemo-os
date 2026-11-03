@@ -320,12 +320,43 @@ app_install() {
   if [[ "$(readlink -f "$REPO_DIR")" != "$(readlink -f "$APP_DIR" 2>/dev/null)" ]]; then
     rm -rf -- "${APP_DIR:?}.new"
     mkdir -p "$APP_DIR.new"
-    cp -r "$REPO_DIR/bin" "$REPO_DIR/plugins" "$REPO_DIR/system" "$LAYOUT_JSON" "$APP_DIR.new/"
+    cp -r "$REPO_DIR/bin" "$REPO_DIR/plugins" "$REPO_DIR/system" "$REPO_DIR/wallpapers" "$LAYOUT_JSON" "$APP_DIR.new/"
     rm -rf -- "${APP_DIR:?}"; mv "$APP_DIR.new" "$APP_DIR"
   fi
   mkdir -p "$(dirname "$CMD_LINK")"
   ln -sfn "$APP_DIR/bin/omnemo-os" "$CMD_LINK"
 }
+# --- wallpaper choice (MANIFEST §3b) --------------------------------------------
+# Our picture is offered in every theme's wallpaper list (Omarchy reads
+# ~/.config/omarchy/backgrounds/<theme>/ and follows links) as a link to the
+# installed copy. The current wallpaper is never changed. A same-named file the
+# person already has is left alone. Uninstall removes exactly the links and
+# folders the record lists.
+WALLPAPER="hwy180-west-golden.jpg"
+USER_BG="$CFG/omarchy/backgrounds"
+wallpaper_themes() {
+  local d
+  for d in /usr/share/omarchy/themes/*/ "$CFG/omarchy/themes"/*/; do [[ -d $d ]] && basename "$d"; done | sort -u
+}
+wallpaper_link() {   # prints JSON {links:[], dirs:[]}
+  local t dir links=() dirs=()
+  while IFS= read -r t; do
+    dir="$USER_BG/$t"
+    [[ -e $dir/$WALLPAPER || -L $dir/$WALLPAPER ]] && continue
+    [[ -d $dir ]] || { mkdir -p "$dir"; dirs+=("$dir"); }
+    ln -s "$APP_DIR/wallpapers/$WALLPAPER" "$dir/$WALLPAPER" && links+=("$dir/$WALLPAPER")
+  done < <(wallpaper_themes)
+  jq -n --args '$ARGS.positional' -- "${links[@]}" | jq --argjson d "$(jq -n --args '$ARGS.positional' -- "${dirs[@]}")" '{links:., dirs:$d}'
+}
+wallpaper_unlink() {   # "$1" = record
+  local l d
+  while IFS= read -r l; do
+    [[ -n $l && -L $l && "$(readlink "$l")" == "$APP_DIR/wallpapers/$WALLPAPER" ]] && rm -f -- "$l"
+  done < <(jq -r '.wallpaper.links[]?' "$1")
+  while IFS= read -r d; do [[ -n $d ]] && rmdir "$d" 2>/dev/null || true; done < <(jq -r '.wallpaper.dirs[]?' "$1")
+  rmdir "$USER_BG" 2>/dev/null || true
+}
+
 cmd_link_ok() { [[ -L $CMD_LINK && "$(readlink "$CMD_LINK")" == "$APP_DIR/bin/omnemo-os" && -x $APP_DIR/bin/omnemo-os ]]; }
 
 # --- Omnemo memory (MANIFEST §4a) --------------------------------------------
@@ -425,6 +456,7 @@ cmd_install() {
     [[ -f "$SYSTEM_SRC/$f" ]] || die "missing $SYSTEM_SRC/$f"
   done
   [[ -f "$SYSTEM_SRC/omnemo-icons-update" ]] || die "missing $SYSTEM_SRC/omnemo-icons-update"
+  [[ -f "$REPO_DIR/wallpapers/$WALLPAPER" ]] || die "missing $REPO_DIR/wallpapers/$WALLPAPER"
   # One rule for every guard file: if any is already there, it is not ours.
   for f in "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$ICON_UPDATER" "$CMD_LINK" "$APP_DIR"; do
     [[ -e $f || -L $f ]] && die "$f already exists and is not ours; refusing (exact-stock promise)"
@@ -527,6 +559,9 @@ cmd_install() {
   tmp="$(mktemp)"
   jq --arg w "$icons_was" --arg s "$icons_state" --arg t "$ICONS_TAG" \
      '. + {icons_was:$w, icons:$s, icons_tag:$t, command_link:true}' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+  local wp; wp="$(wallpaper_link)"
+  tmp="$(mktemp)"; jq --argjson w "$wp" '. + {wallpaper:$w}' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+  say "wallpaper: Hwy 180 at golden hour added to every theme's wallpaper choices (Tools > Theme & wallpaper)"
   say "the omnemo-os command is ready in any new terminal: omnemo-os status | repair | uninstall"
 
   restart_shell
@@ -589,6 +624,7 @@ cmd_uninstall() {
   done < <(jq -r '.plugins[]' "$RECORD")
   # Icons only if we downloaded them (by record).
   [[ "$(jq -r '.icons // "untouched"' "$RECORD")" =~ ^(installed|failed)$ ]] && rm -rf -- "${ICON_STORE:?}" "$ICON_STORE.new" "$ICON_STORE.old"
+  wallpaper_unlink "$RECORD"
   local cmd_link; cmd_link="$(jq -r '.command_link // false' "$RECORD")"
   mv "$RECORD" "$OUR_STATE/uninstalled-$(date -u +%Y%m%dT%H%M%SZ).json"
   omarchy restart shell

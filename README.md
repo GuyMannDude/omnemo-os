@@ -27,7 +27,7 @@ bin/omnemo-os install --allow-rc
 
 `--allow-rc` is only needed while 4.5 is a test version. The memory part downloads a few hundred MB and the colored bar icons about 33 MB, so it needs the internet and a couple of minutes; if you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later. When it finishes, start a **new** session of your AI helper (Claude, Codex, ...) and it shares one memory with the others.
 
-Afterwards, in any new Terminal: `omnemo-os status` shows what is installed (memory and icons included) and flags anything an Omarchy update reset; `omnemo-os repair` puts it back; `omnemo-os uninstall` puts everything back exactly as it was. You can delete the downloaded `omnemo-os` folder once it's installed.
+Afterwards, in any new Terminal: `omnemo-os status` shows what is installed (memory and icons included) and flags anything an Omarchy update reset; `omnemo-os repair` puts it back; `omnemo-os uninstall` puts everything back exactly as it was. You can delete the downloaded `omnemo-os` folder once it's installed. Want a new background? Tools → Theme & wallpaper now includes our own Hwy 180 at golden hour; your current wallpaper is never changed.
 
 Your memories are yours. Click **?** on the bar to see how many your AI helpers have saved. If memories from before are found when you install, you're asked "Keep them?", and uninstall asks "Keep your memories?" too. Pressing Enter always keeps them. Deleting takes typing the word DELETE, and a copy is saved first (`~/omnemo-memories-<date>.tar.gz`). Kept memories stay in `~/.local/share/omnemo`, and a later install picks them up where you left off.
 

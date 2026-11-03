@@ -45,6 +45,9 @@ Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 | Updater | ~/.local/bin/omnemo-icons-update | `--pin TAG SHA` (install), plain = newest release. Checks every icon the bar names, refuses non-SVG files and links that point outside the set, swaps the folder in whole. No timer (Guy: no rush; the Sunday scout flags new releases) |
 Offline install: record `icons: failed`, the bar shows glyphs, status flags it, repair downloads. Uninstall removes the folder only if the record says we downloaded it (`icons_was: present` = left alone).
 
+## 3b. Wallpaper choice (0.9.2, Guy 11-03: "Yes, add it")
+wallpapers/hwy180-west-golden.jpg (2752x1536, 1.1 MB; AI-made with Gamma for Project Sparks: Highway 180 west into the Fresno valley at golden hour). Installed with the app copy; a link to it goes into ~/.config/omarchy/backgrounds/<theme>/ for every stock and user theme, so it shows in Theme & wallpaper (Super+Ctrl+W) whatever the theme. Never set as the current wallpaper. A same-named file already there is skipped. Record `wallpaper.links` / `wallpaper.dirs`; uninstall removes only those links (still pointing at our copy) and the folders it created, if empty.
+
 ## 4. Commands
 `omnemo-os install [--allow-rc]` · `uninstall` · `status` · `repair`
 - install copies bin/, plugins/, system/ and layout.json to ~/.local/share/omnemo-os/app and links ~/.local/bin/omnemo-os there (on PATH in Omarchy's bash envs), so the clone can be deleted. Uninstall removes both last (record `command_link: true`); status flags a broken link, repair relinks.
