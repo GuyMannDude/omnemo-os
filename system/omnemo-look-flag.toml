@@ -16,4 +16,8 @@ background-alpha = 1.0
 accent           = "#0B6BDD"
 hairline         = "#0B6BDD"
 hairline-alpha   = 0.35
+# The flag bar (guy.flag). Blue matches the "?" icon (Papirus help-browser
+# #435ECE), Guy 11-07; the plugin default stays Old Glory #3C3B6E.
+[flag]
+blue             = "#435ECE"
 # omnemo-os:end
