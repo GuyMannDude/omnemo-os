@@ -3,7 +3,7 @@
   "id": "guy.flag",
   "name": "Flag Bar",
   "version": "0.1.0",
-  "author": "Archie (CC4)",
+  "author": "Project Sparks",
   "description": "Paints the bar like a flag: blue behind each group of icons, red and white stripes in the open space",
   "kinds": [
     "bar-widget"
