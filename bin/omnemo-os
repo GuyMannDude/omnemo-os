@@ -186,8 +186,12 @@ FRIENDLY_NAMES=(
   "omawrite|Writer|Write notes and documents"
 )
 
+# Omarchy writes this marker when the installer sets the default workspace
+# layout; it is a side file of ours, so back it up / remove it like the rest (#3).
+WS_NOTE="$STATE/omarchy/workspace-layout-notification"
+
 managed_files() {
-  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS" "$ICON_UPDATER" "$SHELL_TOML"
+  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS" "$ICON_UPDATER" "$SHELL_TOML" "$WS_NOTE"
   local shim entry
   for shim in "${ICON_SHIMS[@]}"; do printf '%s\n' "$ICONS_DIR/$shim/index.theme"; done
   for entry in "${FRIENDLY_NAMES[@]}"; do printf '%s\n' "$APPS_DIR/${entry%%|*}.desktop"; done
@@ -198,6 +202,8 @@ managed_files() {
 backup_managed() {   # "$1" = backup dir
   local f
   : >"$1/absent.list"
+  # The icon shims create ~/.local/share/icons itself; remember if it was ours (#2).
+  [[ -d $ICONS_DIR ]] || : >"$1/icons-dir.absent"
   while IFS= read -r f; do
     if [[ -e $f ]]; then mkdir -p "$1/files$(dirname "$f")"; cp -p "$f" "$1/files$f"
     else printf '%s\n' "$f" >>"$1/absent.list"; fi
@@ -212,6 +218,7 @@ restore_managed() {   # "$1" = backup dir
   done < <(managed_files)
   local shim
   for shim in "${ICON_SHIMS[@]}"; do rmdir "$ICONS_DIR/$shim" 2>/dev/null || true; done
+  [[ -e "$1/icons-dir.absent" ]] && rmdir "$ICONS_DIR" 2>/dev/null || true
 }
 
 # Rename apps whose desktop names mean nothing to a non-developer. The copy in
