@@ -4,7 +4,7 @@ Omarchy, made easy, made for memory.
 
 Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon, and the flag bar), made to run with [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: one command installs it, and one command puts your computer back exactly as it was.
 
-**Status: v0.9 Public Preview.** It works on today's Omarchy 4.5 test version and will be called 1.0 once Omarchy 4.5 stable is out and the edition has survived a reboot and an `omarchy-update` on a stock machine. Expect rough edges, and tell us about them (see below).
+**Status: v0.9 Public Preview.** It runs on Omarchy 4.5 stable (out since 2026-11-05) and will be called 1.0 once the edition has survived a reboot and an `omarchy-update` on a stock machine. Expect rough edges, and tell us about them (see below).
 
 ## Two ways to get it
 
@@ -13,11 +13,10 @@ Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the sa
 
 ## Install
 
-This preview needs Omarchy's 4.5 test version (release candidate). It never asks for your password, except Omarchy's own snapshot step.
+This preview needs Omarchy 4.5 or newer. It never asks for your password, except Omarchy's own snapshot step.
 
 1. Take a snapshot so you can undo: open a Terminal (Super + Enter) and type `omarchy snapshot create` (it asks for your password).
-2. Switch to the test version: Omarchy menu → Update → Channel → RC, then Update → Omarchy.
-3. Paste the three lines below into the Terminal.
+2. Paste the three lines below into the Terminal.
 
 ```
 git clone https://github.com/GuyMannDude/omnemo-os

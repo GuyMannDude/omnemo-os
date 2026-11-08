@@ -1,5 +1,5 @@
 # Omnemo OS — edition inventory (built on Omarchy, MIT)
-v0.9.2 Public Preview · updated 2026-11-07 PST · base: Omarchy 4.5.0rc2 (rc channel; stable gate = 4.5.0-1)
+v0.9.2 Public Preview · updated 2026-11-07 PST · base: Omarchy 4.5.0 stable (4.5.0-3; installer gate = 4.5.0-1)
 Rule: a layer on stock Omarchy, no fork. Everything below is user-level (no sudo), backed up at install, and put back byte-for-byte by `omnemo-os uninstall` (cold run #7: every path identical, content AND file modes).
 
 ## 1. Plugins we ship (~/.config/omarchy/plugins/)
