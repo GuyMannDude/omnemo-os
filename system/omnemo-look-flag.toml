@@ -1,0 +1,19 @@
+# omnemo-os:begin (managed; removed by omnemo-os uninstall)
+# Omnemo OS look, variant FLAG: a clear bar over guy.flag (blue fields, red and white stripes).
+# Later keys win, so this block overrides the theme (and any [bar] above).
+[bar]
+background       = "#0B0E14"
+background-alpha = 0.0   # clear: guy.flag paints under the bar
+text             = "#FFFFFF"
+
+[popups]
+background       = "#0B0E14"
+background-alpha = 1.0
+
+# Read by the Omnemo OS plugins (guy.*): the active-window marker and the
+# menu cards' 1px hairline.
+[omnemo]
+accent           = "#0B6BDD"
+hairline         = "#0B6BDD"
+hairline-alpha   = 0.35
+# omnemo-os:end
