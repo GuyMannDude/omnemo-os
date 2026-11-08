@@ -28,7 +28,7 @@ OUR_STATE="$STATE/omnemo-os"
 RECORD="$OUR_STATE/installed.json"
 
 # Edition plugins (MANIFEST §1). omnemo.memory ships with Omnemo itself, not here.
-PLUGINS=(guy.taskbar guy.tools guy.help guy.favorites guy.clock guy.utils)   # guy.start retired 10-27
+PLUGINS=(guy.taskbar guy.tools guy.help guy.favorites guy.clock guy.utils guy.flag)   # guy.start retired 10-27
 MIN_VERSION="4.5.0"
 
 die()  { printf 'omnemo-os: %s\n' "$*" >&2; exit 1; }
@@ -526,7 +526,7 @@ cmd_install() {
 
   # MANIFEST §2. Commands first (they may rewrite shell.json), layout last.
   shell_step omarchy bar position bottom
-  shell_step omarchy bar background opaque   # MANIFEST §2: a solid bar; its colours come from shell.toml below
+  shell_step omarchy bar background opaque   # MANIFEST §2: 'opaque' keeps the text white; shell.toml below makes it clear for guy.flag
   shell_step omarchy plugin disable omarchy.dock   # MANIFEST §2: stock dock off; .dock.pinned stays for guy.favorites
   shell_step omarchy hyprland workspace layout default floating
   tmp="$(mktemp)"
@@ -550,13 +550,14 @@ cmd_install() {
   printf '\n%s\n' "$(looknfeel_block)" >>"$LOOK_LUA"
   hyprctl reload >/dev/null 2>&1 || true
   say "Apps menu entry, Super+Alt+Space and cursor rule written"
-  # MANIFEST §2: the Omnemo colours (solid navy bar, azure accents). shell.toml
+  # MANIFEST §2: the flag bar (clear bar over guy.flag, navy menus, azure accents).
+  # shell.toml
   # is in managed_files, so uninstall puts it back byte-exact (or removes it).
   if grep -qF "omnemo-os:begin" "$SHELL_TOML" 2>/dev/null; then
     say "bar colours: $SHELL_TOML already carries an omnemo-os block; leaving it"
   else
     mkdir -p "$(dirname "$SHELL_TOML")"
-    { [[ -s $SHELL_TOML ]] && printf '\n'; cat "$SYSTEM_SRC/omnemo-look-A.toml"; } >>"$SHELL_TOML"
+    { [[ -s $SHELL_TOML ]] && printf '\n'; cat "$SYSTEM_SRC/omnemo-look-flag.toml"; } >>"$SHELL_TOML"
     say "bar colours written to $SHELL_TOML"
   fi
 
