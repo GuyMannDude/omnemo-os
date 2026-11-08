@@ -288,7 +288,9 @@ remove_extras() {   # "$1" = backup dir
 # A restart can leave a second bar behind on a box whose shell runtime folder
 # filled up; the guard settles it at once instead of within 30 seconds.
 restart_shell() {
-  omarchy restart shell
+  # Omarchy refuses a shell restart while the screen is locked (a long first
+  # download can outlast the idle lock); everything else is applied, so note it.
+  omarchy restart shell || say "the bar did not restart (screen locked?); unlock, then run: omarchy restart shell"
   [[ -x "$GUARD" ]] && "$GUARD" || true
 }
 
@@ -422,6 +424,7 @@ omnemo_offer_fresh() {
   [[ -d $OMNEMO_STORE ]] || return 1
   if [[ ! -t 0 ]]; then say "memory: no terminal to ask in; keeping your memories in $OMNEMO_STORE"; return 1; fi
   n="$(omnemo_memory_count)"; [[ -n $n ]] || n="your"
+  [[ $n == 0 ]] && return 1   # nothing to keep or delete; do not ask
   read -r -p "omnemo-os: ${q/N/$n} [Y/n] " ans || ans=""
   [[ $ans == [nN]* ]] || { say "memory: keeping them"; return 1; }
   read -r -p "omnemo-os: Delete $n memories in $OMNEMO_STORE? A copy is saved first. Type DELETE to confirm: " ans || ans=""
@@ -639,7 +642,7 @@ cmd_uninstall() {
   wallpaper_unlink "$RECORD"
   local cmd_link; cmd_link="$(jq -r '.command_link // false' "$RECORD")"
   mv "$RECORD" "$OUR_STATE/uninstalled-$(date -u +%Y%m%dT%H%M%SZ).json"
-  omarchy restart shell
+  omarchy restart shell || say "the bar did not restart (screen locked?); unlock, then run: omarchy restart shell"
   "$REPO_DIR/system/omnemo-one-bar" 2>/dev/null || true   # the installed guard is gone now
   say "restored to stock (shell.json byte-exact from $bk)"
   (( fresh )) || omnemo_keep_note
