@@ -22,6 +22,7 @@ HYPR_LUA="$CFG/hypr/hyprland.lua"
 BIND_LUA="$CFG/hypr/bindings.lua"
 LOOK_LUA="$CFG/hypr/looknfeel.lua"
 MENU_JSONC="$CFG/omarchy/extensions/omarchy-menu.jsonc"
+SHELL_TOML="$CFG/omarchy/shell.toml"   # machine-level shell colours; wins over the theme
 MENU_SEED="/usr/share/omarchy/config/omarchy/extensions/omarchy-menu.jsonc"
 OUR_STATE="$STATE/omnemo-os"
 RECORD="$OUR_STATE/installed.json"
@@ -186,7 +187,7 @@ FRIENDLY_NAMES=(
 )
 
 managed_files() {
-  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS" "$ICON_UPDATER"
+  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS" "$ICON_UPDATER" "$SHELL_TOML"
   local shim entry
   for shim in "${ICON_SHIMS[@]}"; do printf '%s\n' "$ICONS_DIR/$shim/index.theme"; done
   for entry in "${FRIENDLY_NAMES[@]}"; do printf '%s\n' "$APPS_DIR/${entry%%|*}.desktop"; done
@@ -525,7 +526,7 @@ cmd_install() {
 
   # MANIFEST §2. Commands first (they may rewrite shell.json), layout last.
   shell_step omarchy bar position bottom
-  shell_step omarchy bar background glassy   # MANIFEST §2: frosted see-through bar (Guy 11-07)
+  shell_step omarchy bar background opaque   # MANIFEST §2: a solid bar; its colours come from shell.toml below
   shell_step omarchy plugin disable omarchy.dock   # MANIFEST §2: stock dock off; .dock.pinned stays for guy.favorites
   shell_step omarchy hyprland workspace layout default floating
   tmp="$(mktemp)"
@@ -549,6 +550,15 @@ cmd_install() {
   printf '\n%s\n' "$(looknfeel_block)" >>"$LOOK_LUA"
   hyprctl reload >/dev/null 2>&1 || true
   say "Apps menu entry, Super+Alt+Space and cursor rule written"
+  # MANIFEST §2: the Omnemo colours (solid navy bar, azure accents). shell.toml
+  # is in managed_files, so uninstall puts it back byte-exact (or removes it).
+  if grep -qF "omnemo-os:begin" "$SHELL_TOML" 2>/dev/null; then
+    say "bar colours: $SHELL_TOML already carries an omnemo-os block; leaving it"
+  else
+    mkdir -p "$(dirname "$SHELL_TOML")"
+    { [[ -s $SHELL_TOML ]] && printf '\n'; cat "$SYSTEM_SRC/omnemo-look-A.toml"; } >>"$SHELL_TOML"
+    say "bar colours written to $SHELL_TOML"
+  fi
 
   install_extras
   say "one-bar guard on; friendly app names, icon sets and Writer for text files set"

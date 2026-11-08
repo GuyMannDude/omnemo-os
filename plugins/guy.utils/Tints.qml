@@ -21,9 +21,13 @@ QtObject {
   readonly property int pillRadius: 10
   readonly property int pillTop: Commons.Style.space(5)
   readonly property int icon: Commons.Style.space(22)
-  readonly property real pillAlpha: 0.16
-  readonly property real pillHoverAlpha: 0.32
-  readonly property real hairlineAlpha: 0.12
+  readonly property real pillAlpha: 0.28
+  readonly property real pillHoverAlpha: 0.44
+  // Omnemo brand colours, from the [omnemo] block the installer adds to
+  // ~/.config/omarchy/shell.toml; the theme's own colours when it is absent.
+  readonly property color accent: Commons.Color.pick("omnemo.accent", Commons.Color.accent)
+  readonly property color hairlineColor: Commons.Color.pick("omnemo.hairline", Commons.Color.foreground)
+  readonly property real hairlineAlpha: Commons.Color.pickAlpha("omnemo.hairline-alpha", 0.12)
 
   // Up to six across, rows filled evenly (11 tiles = 6 + 5, never 5 + 5 + 1).
   function across(count) {
@@ -53,7 +57,7 @@ QtObject {
     return get(order[n % order.length])
   }
   function fill(c, hovered) { return Commons.Util.alpha(c, hovered ? pillHoverAlpha : pillAlpha) }
-  function hairline() { return Commons.Util.alpha(Commons.Color.foreground, hairlineAlpha) }
+  function hairline() { return Commons.Util.alpha(hairlineColor, hairlineAlpha) }
 
   function parse(raw) {
     var out = {}

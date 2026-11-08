@@ -20,7 +20,8 @@ Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 | Setting | Value | How (installer) | Undo |
 |---|---|---|---|
 | Bar position | bottom | `omarchy bar position bottom` | shell.json backup |
-| Bar background | glassy (the wallpaper shows through, frosted) | `omarchy bar background glassy` | shell.json backup |
+| Bar background | solid (opaque) | `omarchy bar background opaque` | shell.json backup |
+| Bar colours | Omnemo navy-black #0B0E14 bar and menu cards, white bar text, azure #0B6BDD active-window marker and card hairline (variant B, azure bar + gold marker, ships as system/omnemo-look-B.toml, unused) | marked block appended to ~/.config/omarchy/shell.toml from system/omnemo-look-A.toml | file backup (byte-exact; removed if it was absent) |
 | Bar layout | see layout.json | `bar.layout` in ~/.config/omarchy/shell.json | shell.json backup |
 | Removed from bar | omarchy.menu, omarchy.workspaces, omarchy.clock (→ guy.clock) | layout | shell.json backup |
 | Right side | only ‹ (hidden icons), wrench, Sound, clock, power; Update, recording and keyboard-language icons appear only when they matter. Network, Bluetooth, Display, Weather, World clocks move into the ‹ drawer (`bar.layout.tray`) | layout | shell.json backup |

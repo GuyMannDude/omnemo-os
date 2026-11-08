@@ -461,7 +461,7 @@ BarWidget {
           width: parent.width - 12
           height: 2
           radius: 1
-          color: Commons.Color.accent
+          color: tints.accent
         }
       }
     }
