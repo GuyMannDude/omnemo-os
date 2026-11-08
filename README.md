@@ -2,7 +2,7 @@
 
 Omarchy, made easy, made for memory.
 
-Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon), made to run with [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: one command installs it, and one command puts your computer back exactly as it was.
+Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon, and the flag bar), made to run with [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: one command installs it, and one command puts your computer back exactly as it was.
 
 **Status: v0.9 Public Preview.** It works on today's Omarchy 4.5 test version and will be called 1.0 once Omarchy 4.5 stable is out and the edition has survived a reboot and an `omarchy-update` on a stock machine. Expect rough edges, and tell us about them (see below).
 
@@ -48,6 +48,6 @@ If something breaks badly, `omnemo-os uninstall` puts your desktop back exactly 
 - `MANIFEST.md` — every file and setting the edition touches, as written on the test laptop.
 - `INSTALLER-NOTES.md` — installer-side notes.
 - `bin/omnemo-os` (`install` / `uninstall` / `status` / `repair`) — the edition layer; install copies it to `~/.local/share/omnemo-os/app` and links `~/.local/bin/omnemo-os` to it.
-- `plugins/` — the edition's six bar plugins. `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running) and `omnemo-icons-update`, which fetches the colored icons ([Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme), GPL-3.0, downloaded from its makers, never bundled here). Run `omnemo-icons-update` any time for the newest set.
+- `plugins/` — the edition's seven bar plugins, including the flag bar (`guy.flag`: blue behind the icons, red and white stripes between them). `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running) and `omnemo-icons-update`, which fetches the colored icons ([Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme), GPL-3.0, downloaded from its makers, never bundled here). Run `omnemo-icons-update` any time for the newest set.
 
 Omnemo OS is built on Omarchy (MIT license). "Omarchy" is a pending trademark of its owners. This project is not affiliated with or endorsed by them.

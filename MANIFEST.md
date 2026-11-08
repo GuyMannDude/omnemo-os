@@ -1,5 +1,5 @@
 # Omnemo OS — edition inventory (built on Omarchy, MIT)
-v0.9.2 Public Preview · updated 2026-11-03 PST · base: Omarchy 4.5.0rc2 (rc channel; stable gate = 4.5.0-1)
+v0.9.2 Public Preview · updated 2026-11-07 PST · base: Omarchy 4.5.0rc2 (rc channel; stable gate = 4.5.0-1)
 Rule: a layer on stock Omarchy, no fork. Everything below is user-level (no sudo), backed up at install, and put back byte-for-byte by `omnemo-os uninstall` (cold run #7: every path identical, content AND file modes).
 
 ## 1. Plugins we ship (~/.config/omarchy/plugins/)
@@ -11,6 +11,7 @@ Rule: a layer on stock Omarchy, no fork. Everything below is user-level (no sudo
 | guy.favorites | center, right of ? | "Favorites ▴": All apps + pinned apps (read live via `omarchy dock pinned`). Right-click a tile → "Remove?" → click to unpin |
 | guy.utils | right, after the ‹ | Wrench: pops up Wi-Fi & internet, Bluetooth, Display, Sound, Weather, World clocks, Calendar and All settings, each with its name. Opens Omarchy's own panels (see §6) |
 | guy.clock | right, before power | Clock icon; hover = day/date/time; click = month calendar |
+| guy.flag | left, first (takes no room) | The flag bar: Old Glory blue #3C3B6E behind each icon group, 5 red/white horizontal stripes in the open space, painted on its own click-through layer under the (clear) bar. Groups found by walking the bar for widget moduleNames, re-checked every 0.7 s. Overrides: shell.toml [flag] red / white / blue / stripes (3-7); e.g. blue = Omnemo azure #0B6BDD |
 Stock widgets placed by us: omarchy.agents (AI usage meter) at the far left; omarchy.tray (‹) on the right, holding Network, Bluetooth, Display, Weather and World clocks in its drawer, plus any background-app tray icons.
 Not shipped: omnemo.memory (Guy, 10-30: "User does not need a memory display"), guy.start, guy.apps, guy.dock.
 Every edition plugin shows a colored Papirus icon (§3a) and falls back to its one-color glyph when the icon is missing. Tools, wrench, Favorites and ? can be opened with `omarchy-shell shell summon <id> {}` (closed with `shell hide <id>`).
