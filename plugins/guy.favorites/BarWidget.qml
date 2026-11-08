@@ -14,6 +14,9 @@ BarWidget {
   id: root
   moduleName: "guy.favorites"
 
+  // The shared menu look (Tints.qml in this folder).
+  Tints { id: tints }
+
   // Glyphs are written as code points: pasted Nerd Font glyphs get lost.
   function glyph(code) { return String.fromCodePoint(code) }
 
@@ -105,14 +108,16 @@ BarWidget {
     bar: root.bar
     owner: root
     open: root.popupOpen
+    // A thin hairline instead of the heavy accent frame.
+    borderSpec: Border.flat(tints.hairline(), 1)
     // Four across, so it pops up on the right of the "?".
-    contentWidth: popup.fittedContentWidth(4 * Style.space(96) + popup.padding * 2 + 4)
+    contentWidth: popup.fittedContentWidth(tints.cardWidth(root.tools.length, popup.padding))
     contentHeight: popup.fittedContentHeight(choices.implicitHeight)
 
     Flow {
       id: choices
       anchors.fill: parent
-      spacing: Style.space(4)
+      spacing: tints.gap
       // Esc closes the row, like any pop-up menu.
       focus: root.popupOpen
       Keys.onEscapePressed: function(event) { root.close(); event.accepted = true }
@@ -124,19 +129,31 @@ BarWidget {
           id: choice
           required property var modelData
 
-          width: Style.space(92)
-          height: Style.space(86)
-          radius: 6
+          width: tints.tileW
+          height: tints.tileH
+          radius: tints.tileRadius
           color: choiceMouse.pressed ? Style.pressedFill : (choiceMouse.containsMouse ? Style.hoverFill : "transparent")
+
+          // A soft pill in the tile's own theme color behind the icon.
+          Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: tints.pillTop
+            width: tints.pill
+            height: tints.pill
+            radius: tints.pillRadius
+            color: tints.fill(tints.forName(choice.modelData.label), choiceMouse.containsMouse)
+            Behavior on color { ColorAnimation { duration: 120 } }
+          }
 
           // Colored icon (Papirus); the glyph below shows only if it is missing.
           Image {
             id: tileColor
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Style.space(8)
-            width: Style.space(30)
-            height: Style.space(30)
+            anchors.topMargin: tints.pillTop + (tints.pill - tints.icon) / 2
+            width: tints.icon
+            height: tints.icon
             sourceSize.width: 48
             sourceSize.height: 48
             smooth: true
@@ -148,8 +165,8 @@ BarWidget {
             visible: !!choice.modelData.entryIcon && tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Style.space(8)
-            implicitSize: Style.space(30)
+            anchors.topMargin: tints.pillTop + (tints.pill - tints.icon) / 2
+            implicitSize: tints.icon
             source: choice.modelData.entryIcon ? Quickshell.iconPath(choice.modelData.entryIcon, "application-x-executable") : ""
           }
 
@@ -157,21 +174,21 @@ BarWidget {
             visible: !choice.modelData.entryIcon && tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Style.space(8)
-            height: Style.space(30)
+            anchors.topMargin: tints.pillTop + (tints.pill - tints.icon) / 2
+            height: tints.icon
             verticalAlignment: Text.AlignVCenter
             textFormat: Text.PlainText
             text: choice.modelData.glyph || ""
             color: choiceMouse.containsMouse ? Commons.Color.accent : Commons.Color.foreground
             font.family: root.bar ? root.bar.fontFamily : Style.fontFamily
-            font.pixelSize: Style.space(24)
+            font.pixelSize: Style.space(18)
           }
 
           Text {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: Style.space(6)
-            width: parent.width - Style.space(6)
+            anchors.bottomMargin: Style.space(4)
+            width: parent.width - Style.space(4)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             maximumLineCount: 2
@@ -180,7 +197,7 @@ BarWidget {
             text: root.removing !== "" && root.removing === choice.modelData.id ? "Remove?" : choice.modelData.label
             color: root.removing !== "" && root.removing === choice.modelData.id ? Commons.Color.accent : Commons.Color.foreground
             font.family: Style.fontFamily
-            font.pixelSize: Style.font.body - 1
+            font.pixelSize: Style.font.body - 2
           }
 
           MouseArea {

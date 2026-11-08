@@ -14,6 +14,9 @@ BarWidget {
   id: root
   moduleName: "guy.utils"
 
+  // The shared menu look (Tints.qml in this folder).
+  Tints { id: tints }
+
   // Glyphs are written as code points: pasted Nerd Font glyphs get lost.
   function glyph(code) { return String.fromCodePoint(code) }
   // Every command is a fixed argument list (no shell line); the ids are
@@ -21,14 +24,14 @@ BarWidget {
   function panel(id) { return ["omarchy-shell", "shell", "summon", id, "{}"] }
 
   readonly property var tools: [
-    { glyph: glyph(0xf05a9), color: "apps/nm-device-wireless", label: "Wi-Fi & internet", command: root.panel("omarchy.network") },
-    { glyph: glyph(0xf00af), color: "apps/blueman", label: "Bluetooth",        command: root.panel("omarchy.bluetooth") },
-    { glyph: glyph(0xf0379), color: "devices/video-display", label: "Display",          command: root.panel("omarchy.monitor") },
-    { glyph: glyph(0xf057e), color: "apps/preferences-desktop-sound", label: "Sound",            command: root.panel("omarchy.audio") },
-    { glyph: glyph(0xf0595), color: "apps/org.gnome.Weather", label: "Weather",          command: root.panel("omarchy.weather") },
-    { glyph: glyph(0xf01e7), color: "apps/org.gnome.clocks", label: "World clocks",     command: root.panel("omarchy.elsewhen") },
-    { glyph: glyph(0xf00ed), color: "apps/org.gnome.Calendar", label: "Calendar",         command: root.panel("guy.clock") },
-    { glyph: glyph(0xf0493), color: "apps/org.gnome.Settings", label: "All settings",     command: ["omarchy-menu", "toggle"] }
+    { glyph: glyph(0xf05a9), color: "apps/nm-device-wireless", tint: "blue", label: "Wi-Fi & internet", command: root.panel("omarchy.network") },
+    { glyph: glyph(0xf00af), color: "apps/blueman", tint: "blue", label: "Bluetooth",        command: root.panel("omarchy.bluetooth") },
+    { glyph: glyph(0xf0379), color: "devices/video-display", tint: "cyan", label: "Display",          command: root.panel("omarchy.monitor") },
+    { glyph: glyph(0xf057e), color: "apps/preferences-desktop-sound", tint: "cyan", label: "Sound",            command: root.panel("omarchy.audio") },
+    { glyph: glyph(0xf0595), color: "apps/org.gnome.Weather", tint: "yellow", label: "Weather",          command: root.panel("omarchy.weather") },
+    { glyph: glyph(0xf01e7), color: "apps/org.gnome.clocks", tint: "orange", label: "World clocks",     command: root.panel("omarchy.elsewhen") },
+    { glyph: glyph(0xf00ed), color: "apps/org.gnome.Calendar", tint: "magenta", label: "Calendar",         command: root.panel("guy.clock") },
+    { glyph: glyph(0xf0493), color: "apps/org.gnome.Settings", tint: "green", label: "All settings",     command: ["omarchy-menu", "toggle"] }
   ]
 
   property bool popupOpen: false
@@ -79,14 +82,16 @@ BarWidget {
     bar: root.bar
     owner: root
     open: root.popupOpen
+    // A thin hairline instead of the heavy accent frame.
+    borderSpec: Border.flat(tints.hairline(), 1)
     // Four across, two rows.
-    contentWidth: popup.fittedContentWidth(4 * Style.space(96) + popup.padding * 2 + 4)
+    contentWidth: popup.fittedContentWidth(tints.cardWidth(root.tools.length, popup.padding))
     contentHeight: popup.fittedContentHeight(choices.implicitHeight)
 
     Flow {
       id: choices
       anchors.fill: parent
-      spacing: Style.space(4)
+      spacing: tints.gap
       // Esc closes the row, like any pop-up menu.
       focus: root.popupOpen
       Keys.onEscapePressed: function(event) { root.close(); event.accepted = true }
@@ -98,19 +103,31 @@ BarWidget {
           id: choice
           required property var modelData
 
-          width: Style.space(92)
-          height: Style.space(86)
-          radius: 6
+          width: tints.tileW
+          height: tints.tileH
+          radius: tints.tileRadius
           color: choiceMouse.pressed ? Style.pressedFill : (choiceMouse.containsMouse ? Style.hoverFill : "transparent")
+
+          // A soft pill in the tile's own theme color behind the icon.
+          Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: tints.pillTop
+            width: tints.pill
+            height: tints.pill
+            radius: tints.pillRadius
+            color: tints.fill(tints.get(choice.modelData.tint), choiceMouse.containsMouse)
+            Behavior on color { ColorAnimation { duration: 120 } }
+          }
 
           // Colored icon (Papirus); the glyph below shows only if it is missing.
           Image {
             id: tileColor
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Style.space(8)
-            width: Style.space(30)
-            height: Style.space(30)
+            anchors.topMargin: tints.pillTop + (tints.pill - tints.icon) / 2
+            width: tints.icon
+            height: tints.icon
             sourceSize.width: 48
             sourceSize.height: 48
             smooth: true
@@ -122,21 +139,21 @@ BarWidget {
             visible: tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Style.space(8)
-            height: Style.space(30)
+            anchors.topMargin: tints.pillTop + (tints.pill - tints.icon) / 2
+            height: tints.icon
             verticalAlignment: Text.AlignVCenter
             textFormat: Text.PlainText
             text: choice.modelData.glyph
-            color: choiceMouse.containsMouse ? Commons.Color.accent : Commons.Color.foreground
+            color: tints.get(choice.modelData.tint)
             font.family: root.bar ? root.bar.fontFamily : Style.fontFamily
-            font.pixelSize: Style.space(24)
+            font.pixelSize: Style.space(18)
           }
 
           Text {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: Style.space(6)
-            width: parent.width - Style.space(6)
+            anchors.bottomMargin: Style.space(4)
+            width: parent.width - Style.space(4)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             maximumLineCount: 2
@@ -145,7 +162,7 @@ BarWidget {
             text: choice.modelData.label
             color: Commons.Color.foreground
             font.family: Style.fontFamily
-            font.pixelSize: Style.font.body - 1
+            font.pixelSize: Style.font.body - 2
           }
 
           MouseArea {

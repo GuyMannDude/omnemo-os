@@ -525,6 +525,7 @@ cmd_install() {
 
   # MANIFEST §2. Commands first (they may rewrite shell.json), layout last.
   shell_step omarchy bar position bottom
+  shell_step omarchy bar background glassy   # MANIFEST §2: frosted see-through bar (Guy 11-07)
   shell_step omarchy plugin disable omarchy.dock   # MANIFEST §2: stock dock off; .dock.pinned stays for guy.favorites
   shell_step omarchy hyprland workspace layout default floating
   tmp="$(mktemp)"

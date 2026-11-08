@@ -20,6 +20,7 @@ Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 | Setting | Value | How (installer) | Undo |
 |---|---|---|---|
 | Bar position | bottom | `omarchy bar position bottom` | shell.json backup |
+| Bar background | glassy (the wallpaper shows through, frosted) | `omarchy bar background glassy` | shell.json backup |
 | Bar layout | see layout.json | `bar.layout` in ~/.config/omarchy/shell.json | shell.json backup |
 | Removed from bar | omarchy.menu, omarchy.workspaces, omarchy.clock (→ guy.clock) | layout | shell.json backup |
 | Right side | only ‹ (hidden icons), wrench, Sound, clock, power; Update, recording and keyboard-language icons appear only when they matter. Network, Bluetooth, Display, Weather, World clocks move into the ‹ drawer (`bar.layout.tray`) | layout | shell.json backup |

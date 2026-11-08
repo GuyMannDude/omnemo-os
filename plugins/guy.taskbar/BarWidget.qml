@@ -14,6 +14,9 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "guy.taskbar"
+
+  // The shared menu look (Tints.qml in this folder).
+  Tints { id: tints }
   fixedEdge: "start"
 
   readonly property int iconSize: 20
@@ -500,13 +503,15 @@ BarWidget {
     bar: root.bar
     owner: root
     open: root.flyoutOpen
-    contentWidth: flyout.fittedContentWidth(Math.min(root.flyoutItems.length, 7) * Style.space(96) + flyout.padding * 2 + 4)
+    // A thin hairline instead of the heavy accent frame.
+    borderSpec: Border.flat(tints.hairline(), 1)
+    contentWidth: flyout.fittedContentWidth(tints.cardWidth(root.flyoutItems.length, flyout.padding))
     contentHeight: flyout.fittedContentHeight(choices.implicitHeight)
 
     Flow {
       id: choices
       anchors.fill: parent
-      spacing: Style.space(4)
+      spacing: tints.gap
       // Esc closes the row, like any pop-up menu.
       focus: root.flyoutOpen
       Keys.onEscapePressed: function(event) { root.close(); event.accepted = true }
@@ -518,19 +523,31 @@ BarWidget {
           id: choice
           required property var modelData
 
-          width: Style.space(92)
-          height: Style.space(86)
-          radius: 6
+          width: tints.tileW
+          height: tints.tileH
+          radius: tints.tileRadius
           color: choiceMouse.pressed ? Style.pressedFill : (choiceMouse.containsMouse ? Style.hoverFill : "transparent")
+
+          // A soft pill in the tile's own theme color behind the icon.
+          Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: tints.pillTop
+            width: tints.pill
+            height: tints.pill
+            radius: tints.pillRadius
+            color: tints.fill((choice.modelData.tint ? tints.get(choice.modelData.tint) : tints.forName(choice.modelData.label)), choiceMouse.containsMouse)
+            Behavior on color { ColorAnimation { duration: 120 } }
+          }
 
           // Colored icon (Papirus); the glyph below shows only if it is missing.
           Image {
             id: tileColor
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Style.space(8)
-            width: Style.space(30)
-            height: Style.space(30)
+            anchors.topMargin: tints.pillTop + (tints.pill - tints.icon) / 2
+            width: tints.icon
+            height: tints.icon
             sourceSize.width: 48
             sourceSize.height: 48
             smooth: true
@@ -542,8 +559,8 @@ BarWidget {
             visible: !!(choice.modelData.entryIcon || choice.modelData.iconSource) && tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Style.space(8)
-            implicitSize: Style.space(30)
+            anchors.topMargin: tints.pillTop + (tints.pill - tints.icon) / 2
+            implicitSize: tints.icon
             source: choice.modelData.iconSource || (choice.modelData.entryIcon ? Quickshell.iconPath(choice.modelData.entryIcon, "application-x-executable") : "")
           }
 
@@ -551,21 +568,21 @@ BarWidget {
             visible: !(choice.modelData.entryIcon || choice.modelData.iconSource) && tileColor.status !== Image.Ready
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Style.space(8)
-            height: Style.space(30)
+            anchors.topMargin: tints.pillTop + (tints.pill - tints.icon) / 2
+            height: tints.icon
             verticalAlignment: Text.AlignVCenter
             textFormat: Text.PlainText
             text: choice.modelData.glyph || ""
-            color: choiceMouse.containsMouse ? Commons.Color.accent : Commons.Color.foreground
+            color: (choice.modelData.tint ? tints.get(choice.modelData.tint) : tints.forName(choice.modelData.label))
             font.family: choice.modelData.glyphFont || (root.bar ? root.bar.fontFamily : Style.fontFamily)
-            font.pixelSize: Style.space(24)
+            font.pixelSize: Style.space(18)
           }
 
           Text {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: Style.space(6)
-            width: parent.width - Style.space(6)
+            anchors.bottomMargin: Style.space(4)
+            width: parent.width - Style.space(4)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             maximumLineCount: 2
@@ -574,7 +591,7 @@ BarWidget {
             text: choice.modelData.label
             color: Commons.Color.foreground
             font.family: Style.fontFamily
-            font.pixelSize: Style.font.body - 1
+            font.pixelSize: Style.font.body - 2
           }
 
           MouseArea {
