@@ -23,5 +23,15 @@ Install, clicks (taskbar left/right, Favorites, Apps, Super+Alt+Space, Browsers,
 
 Cold run #3 on the fixed script: install exit 0 with no grep noise, a re-install attempt refused correctly, uninstall exit 0, byte-diff PASS on all 12 entries including the workspace-layouts dir.
 
+## Cold run #9 — 2026-11-07 (fresh Omarchy 4.5.0-3 stable, QEMU VM on IGOR, 4 GB / 2 vCPU)
+A stranger's run from the README on today's ISO (sha256 + GPG verified), whole-home snapshot before and after, then the same around uninstall. Lab record: `~/vm-lab/omarchy/LAB-RECORD.md` on IGOR (cold-run session), screenshots in `shots/`.
+- **Install (04d51c7): PASS, 0 human fixes.** Flag bar, Tools / ? / Favorites / wrench menus, `omnemo-os status` all as spec. Second install needed 1 human fix: Omarchy's 5-minute idle lock engaged during the 12-minute Omnemo download, and `omarchy restart shell` refuses while locked; under `set -e` the install died one line before "installed." with everything applied. Fixed in a17dfe8 (both restart call sites print "the bar did not restart (screen locked?); unlock, then run: omarchy restart shell" instead of dying) and re-verified: clean install in 39 s. Same commit: no "Keep them?" question when the store holds 0 memories.
+- **Reboot with the edition: PASS.** Exactly one bar process, one-bar guard timer firing, flag at +25 s / +60 s / +5 min.
+- **Uninstall: every managed path byte-exact (content + mode).** The strict whole-home compare found two edition paths left behind: `~/.local/share/icons` as an empty dir (created as the parent of the Yaru-gray/grey shims) and `~/.local/state/omarchy/workspace-layout-notification` (written by Omarchy when the installer sets the default layout). Fixed in 08c8436: both go through `managed_files` / `absent.list`, plus an `icons-dir.absent` marker in the backup. **Re-run on 08c8436: PASS** — both gone after uninstall, flag bar at spec straight away, 1 quickshell.
+- **Known leftovers, Omnemo-side, not the edition's (issues #4, #5):** `omnemo setup` creates/changes AI-helper configs (`~/.claude.json`, `~/.codex/config.toml`, `~/.config/crush/crush.json`, `~/.config/opencode/opencode.json` gains `"mcp": {}`), and running `claude` / `codex` through Omarchy's mise shims downloads Claude Code (~325 MB) and Codex (~516 MB) into `~/.local/share/mise/installs`. Uninstall does not undo these. Documented for 0.9.2; fix in Omnemo for 0.9.3.
+- **Flag bar first paint (issue #6):** right after the FIRST install the bar stayed opaque theme-colour for several minutes, then cleared with the same quickshell PID; after a restart the flag shows within 15 s. Unexplained; did not recur on the re-run.
+- quickshell idle RSS ≈ 670–750 MB in the VM (software rendering); stock measured 705 MB, so it is the VM, not the edition.
+- Lab traps worth keeping: a 12-minute unattended install trips Omarchy's idle lock (screensaver 150 s, lock 300 s) — Stay Awake (`omarchy-toggle-idle`) before a long install in a VM; a `set -e` installer must never die after the record is written and before "installed." (it now doesn't).
+
 ## Still owed
 - Rename plugins to one product namespace (`omnemo-os.*`).
