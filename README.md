@@ -22,10 +22,10 @@ This preview needs Omarchy's 4.5 test version (release candidate). It never asks
 ```
 git clone https://github.com/GuyMannDude/omnemo-os
 cd omnemo-os
-bin/omnemo-os install --allow-rc
+bin/omnemo-os install
 ```
 
-`--allow-rc` is only needed while 4.5 is a test version. The memory part downloads a few hundred MB and the colored bar icons about 33 MB, so it needs the internet and a couple of minutes; if you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later. When it finishes, start a **new** session of your AI helper (Claude, Codex, ...) and it shares one memory with the others.
+Omarchy 4.5 stable shipped on 2026-11-05; on an older 4.5 test version add `--allow-rc`. The memory part downloads a few hundred MB and the colored bar icons about 33 MB, so it needs the internet and a couple of minutes; if you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later. When it finishes, start a **new** session of your AI helper (Claude, Codex, ...) and it shares one memory with the others.
 
 Afterwards, in any new Terminal: `omnemo-os status` shows what is installed (memory and icons included) and flags anything an Omarchy update reset; `omnemo-os repair` puts it back; `omnemo-os uninstall` puts everything back exactly as it was. You can delete the downloaded `omnemo-os` folder once it's installed. Want a new background? Tools → Theme & wallpaper now includes our own Hwy 180 at golden hour; your current wallpaper is never changed.
 
