@@ -51,4 +51,6 @@ If something breaks badly, `omnemo-os uninstall` puts your desktop back exactly 
 - `bin/omnemo-os` (`install` / `uninstall` / `status` / `repair`) — the edition layer; install copies it to `~/.local/share/omnemo-os/app` and links `~/.local/bin/omnemo-os` to it.
 - `plugins/` — the edition's seven bar plugins, including the flag bar (`guy.flag`: blue behind the icons, red and white stripes between them). `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running) and `omnemo-icons-update`, which fetches the colored icons ([Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme), GPL-3.0, downloaded from its makers, never bundled here). Run `omnemo-icons-update` any time for the newest set.
 
+Omnemo OS is MIT licensed: see [LICENSE](LICENSE). Use it, change it, share it.
+
 Omnemo OS is built on Omarchy (MIT license). "Omarchy" is a pending trademark of its owners. This project is not affiliated with or endorsed by them.
