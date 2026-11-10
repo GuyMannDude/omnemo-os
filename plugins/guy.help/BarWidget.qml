@@ -24,7 +24,9 @@ BarWidget {
     { icon: glyph(0xf003b), color: "apps/gbrainy", name: "Pinned buttons",  what: "AI (brain), Browsers and Web apps pop up a row of choices: click one to open it. Files and Apps open straight away; Settings opens the full Omarchy menu" },
     { icon: glyph(0xf05af), name: "Open windows",    what: "Click to bring up, click again to minimize. Right-click to minimize, add to Favorites or close" },
     { header: "Built in" },
-    { icon: glyph(0xf09d1), color: "apps/braindump", name: "Memory", what: root.memoryWhat }
+    { icon: glyph(0xf09d1), color: "apps/braindump", name: "Memory", what: root.memoryWhat },
+    { header: "Windows won't move or resize?" },
+    { icon: glyph(0xf05b2), color: "apps/cs-windows", name: "Press Super + L", what: "Super is the Windows key. Windows have three ways to sit on the screen: free (drag and resize them with the mouse), side by side (they fill the screen and stay put), and a sliding row. Super + L switches to the next one and a note says which. Keep pressing until it says floating and your windows move freely again." }
   ]
 
   // Memory row: live numbers from `omnemo stats --json`, read each time the

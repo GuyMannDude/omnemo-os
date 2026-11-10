@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "guy.tools",
   "name": "Bar Tools",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "author": "Project Sparks",
   "description": "A labeled Tools button that pops up handy tools: calculator, screenshot, screen recording and more",
   "kinds": [
