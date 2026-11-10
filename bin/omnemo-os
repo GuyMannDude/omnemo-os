@@ -109,6 +109,8 @@ bindings_block() {
   printf '%s\n' "$RULE_BEGIN" \
     'hl.unbind("SUPER + ALT + SPACE")' \
     'o.bind("SUPER + ALT + SPACE", "Apps", "omarchy-menu toggle apps")' \
+    '-- Stock Super+M minimizes only on a floating workspace; ours works on every kind.' \
+    'o.rebind("SUPER + M", "Minimize window to the taskbar", "omnemo-window-minimize")' \
     "$RULE_END"
 }
 looknfeel_block() {
@@ -174,6 +176,7 @@ ICONS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons"
 UNITS_DIR="$CFG/systemd/user"
 GUARD="$HOME/.local/bin/omnemo-one-bar"
 ICON_UPDATER="$HOME/.local/bin/omnemo-icons-update"
+MINIMIZE="$HOME/.local/bin/omnemo-window-minimize"   # what Super+M runs
 MIMEAPPS="$CFG/mimeapps.list"
 NAME_MARK="# omnemo-os: friendly name (omnemo-os repair puts it back)"
 # Omarchy's white and vantablack themes name these icon sets; neither is
@@ -191,7 +194,7 @@ FRIENDLY_NAMES=(
 WS_NOTE="$STATE/omarchy/workspace-layout-notification"
 
 managed_files() {
-  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS" "$ICON_UPDATER" "$SHELL_TOML" "$WS_NOTE"
+  printf '%s\n' "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$MIMEAPPS" "$ICON_UPDATER" "$SHELL_TOML" "$WS_NOTE" "$MINIMIZE"
   local shim entry
   for shim in "${ICON_SHIMS[@]}"; do printf '%s\n' "$ICONS_DIR/$shim/index.theme"; done
   for entry in "${FRIENDLY_NAMES[@]}"; do printf '%s\n' "$APPS_DIR/${entry%%|*}.desktop"; done
@@ -283,6 +286,7 @@ install_extras() {
 install_system_files() {
   install -Dm755 "$SYSTEM_SRC/omnemo-one-bar" "$GUARD"
   install -Dm755 "$SYSTEM_SRC/omnemo-icons-update" "$ICON_UPDATER"
+  install -Dm755 "$SYSTEM_SRC/omnemo-window-minimize" "$MINIMIZE"
   install -Dm644 -t "$UNITS_DIR" "$SYSTEM_SRC/omnemo-one-bar.service" "$SYSTEM_SRC/omnemo-one-bar.timer"
   systemctl --user daemon-reload
   systemctl --user enable --now omnemo-one-bar.timer >/dev/null 2>&1 ||
@@ -622,6 +626,17 @@ omnemo_offer_fresh() {
   return 0
 }
 
+# One Omarchy 4.5 update step removes a helper package together with whatever
+# was installed only because of it; on a computer where the desktop itself is
+# marked that way, the desktop goes too (omarchy#18154). Say so when it applies.
+update_safety_note() {
+  command -v pacman >/dev/null 2>&1 || return 0
+  pacman -Qqd omarchy >/dev/null 2>&1 || return 0
+  say "BEFORE your next Omarchy update, run this once: sudo pacman -D --asexplicit omarchy"
+  say "  (this computer has Omarchy marked as 'installed as a dependency', and one 4.5 update step can then remove the desktop; the README says more)"
+  return 0
+}
+
 # --- install ----------------------------------------------------------------
 cmd_install() {
   local allow_rc=0
@@ -644,9 +659,10 @@ cmd_install() {
     [[ -f "$SYSTEM_SRC/$f" ]] || die "missing $SYSTEM_SRC/$f"
   done
   [[ -f "$SYSTEM_SRC/omnemo-icons-update" ]] || die "missing $SYSTEM_SRC/omnemo-icons-update"
+  [[ -f "$SYSTEM_SRC/omnemo-window-minimize" ]] || die "missing $SYSTEM_SRC/omnemo-window-minimize"
   [[ -f "$REPO_DIR/wallpapers/$WALLPAPER" ]] || die "missing $REPO_DIR/wallpapers/$WALLPAPER"
   # One rule for every guard file: if any is already there, it is not ours.
-  for f in "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$ICON_UPDATER" "$CMD_LINK" "$APP_DIR"; do
+  for f in "$GUARD" "$UNITS_DIR/omnemo-one-bar.service" "$UNITS_DIR/omnemo-one-bar.timer" "$ICON_UPDATER" "$MINIMIZE" "$CMD_LINK" "$APP_DIR"; do
     [[ -e $f || -L $f ]] && die "$f already exists and is not ours; refusing (exact-stock promise)"
   done
 
@@ -775,6 +791,7 @@ cmd_install() {
                helpers_report ;;
     failed)    say "memory: NOT installed yet; run 'omnemo-os repair' when you are online" ;;
   esac
+  update_safety_note
   say "installed. Undo: omnemo-os uninstall"
 }
 
@@ -870,6 +887,7 @@ cmd_status() {
     else say "icons: one-color only; the colored icons are missing -- run 'omnemo-os repair'"; fi
     [[ "$(jq -r '.command_link // false' "$RECORD")" != true ]] || cmd_link_ok || say "the omnemo-os command link is broken -- run 'omnemo-os repair'"
     [[ "$(jq -r '.omnemo // ""' "$RECORD")" != installed ]] || helpers_report
+    update_safety_note
   fi
   return 0
 }
@@ -894,6 +912,7 @@ cmd_repair() {
   fi
   apply_friendly_names
   [[ -x $ICON_UPDATER ]] || install -Dm755 "$SYSTEM_SRC/omnemo-icons-update" "$ICON_UPDATER"
+  [[ -x $MINIMIZE ]] || install -Dm755 "$SYSTEM_SRC/omnemo-window-minimize" "$MINIMIZE"
   if [[ ! -f $ICON_STORE/VERSION ]]; then
     local ist tmp2; ist="$(icons_install)"
     # Ours from now on unless they were here before Omnemo OS.
@@ -985,7 +1004,7 @@ cmd_update() {
   [[ -f "$SHELL_JSON" ]]  || die "no $SHELL_JSON; is this an Omarchy box?"
   local p f
   for p in "${PLUGINS[@]}"; do [[ -d "$PLUGIN_SRC/$p" ]] || die "plugin source missing: $PLUGIN_SRC/$p"; done
-  for f in omnemo-one-bar omnemo-one-bar.service omnemo-one-bar.timer omnemo-icons-update omnemo-look-flag.toml; do
+  for f in omnemo-one-bar omnemo-one-bar.service omnemo-one-bar.timer omnemo-icons-update omnemo-window-minimize omnemo-look-flag.toml; do
     [[ -f "$SYSTEM_SRC/$f" ]] || die "missing $SYSTEM_SRC/$f"
   done
   [[ -f "$REPO_DIR/wallpapers/$WALLPAPER" ]] || die "missing $REPO_DIR/wallpapers/$WALLPAPER"
@@ -1116,6 +1135,7 @@ cmd_update() {
     say "you had changed these parts of the bar: ${edited[*]}"
     say "  they are now the new version; your own copies are saved in $keep/plugins"
   fi
+  update_safety_note
   say "updated to $VERSION. Undo everything, as before: omnemo-os uninstall"
 }
 

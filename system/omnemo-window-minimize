@@ -1,0 +1,14 @@
+#!/bin/bash
+# Omnemo OS: minimize the active window (or the one at $1) to the taskbar.
+# Same as Omarchy's omarchy-hyprland-window-minimize, minus its "floating
+# workspaces only" rule: guy.taskbar brings windows back on any layout.
+if [[ -n ${1:-} ]]; then
+  ADDRESS=$1
+  WORKSPACE=$(hyprctl clients -j | jq -r --arg address "$ADDRESS" 'first(.[] | select(.address == $address) | .workspace.id) // empty')
+else
+  read -r ADDRESS WORKSPACE < <(hyprctl activewindow -j | jq -r '"\(.address // "") \(.workspace.id // "")"')
+fi
+[[ -n $ADDRESS && $WORKSPACE =~ ^[0-9]+$ ]] || exit 1
+hyprctl dispatch "hl.dsp.window.tag({ tag = \"+omarchy-minimized-from-$WORKSPACE\", window = \"address:$ADDRESS\" })" >/dev/null
+hyprctl dispatch "hl.dsp.window.move({ workspace = \"special:minimized\", follow = false, window = \"address:$ADDRESS\" })" >/dev/null
+hyprctl dispatch "hl.dsp.focus({ workspace = \"$WORKSPACE\" })" >/dev/null
