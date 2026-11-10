@@ -10,7 +10,7 @@ Omarchy, made easy, made for memory.
 
 Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon, and the flag bar), made to run with [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: three lines you paste install it, and one command puts your computer back exactly as it was.
 
-**Status: v0.9 Public Preview.** It runs on Omarchy 4.5 stable (out since 2026-11-05). It will be called 1.0 when it has come through a full Omarchy version update on a stock computer with the edition on, and when three things are in: a hello on first start that shows the memory at work, windows that fit whatever screen is plugged in, and close and minimize buttons on windows. Expect rough edges, and tell us about them (see below).
+**Status: v0.9 Public Preview.** It runs on Omarchy 4.5 stable (out since 2026-11-05). It will be called 1.0 when it has come through a full Omarchy version update on a stock computer with the edition on. Expect rough edges, and tell us about them (see below).
 
 **Your windows will float.** Stock Omarchy tiles: windows fill the screen side by side and you steer them from the keyboard. Omnemo OS switches that to windows that overlap, that you drag and resize with the mouse, with a taskbar to find them again. If tiling is why you chose Omarchy, this is the biggest change you will notice; Super + L (Super is the Windows key) switches a workspace between the two and back.
 

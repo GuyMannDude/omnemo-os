@@ -97,7 +97,7 @@ No system files, no sudo, no Omarchy source edits, no desktop icons (Guy's veto)
 Window address validated before every dispatch; launches built as argv; help walk documented + try/catch; DEBUG logging stripped (10-30).
 
 ## 8. Known issues / open
-- What 1.0 waits for (same sentence as the README): a full Omarchy version update taken on a stock computer with the edition on, plus a first-start hello that shows the memory at work, windows that fit whatever screen is plugged in, and close and minimize buttons on windows.
+- What 1.0 waits for (same sentence as the README): a full Omarchy version update taken on a stock computer with the edition on.
 - Already passed: the reboot check and an `omarchy-update` with Omnemo OS on (10-30; 6 app packages moved, Omarchy itself did not). An Omarchy version bump with the edition on is the part not yet done; status/repair and tests/bar-check.sh are the backstop (foot.desktop reset is the known case).
 - Chrome site notifications arrive as critical and stay until dismissed; turn them off per site in Chrome. Upstream suggestion drafted, unposted (~/omnemo-os-pending/upstream-issue-notifications.md).
 - quickshell logs "Module path ... is outside of the config folder" for every user plugin: harmless, stock behaviour.
