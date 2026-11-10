@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# omnemo-os — install / uninstall / status for the Omnemo OS edition layer.
+# omnemo-os — install / uninstall / status / repair for the Omnemo OS edition layer.
 # v0.9 (2026-10-30) written from MANIFEST.md; three cold runs on a stock Omarchy
 # 4.5.0rc2 laptop 2026-10-30: install, clicks, uninstall, byte-diff all PASS.
 # Contract: user-level only, no sudo, no stock file edits. install backs up every
@@ -7,7 +7,7 @@
 # what install created.
 set -euo pipefail
 
-VERSION="0.9.2"
+VERSION="0.9.3"
 # Follow the ~/.local/bin/omnemo-os link back to the installed copy.
 REPO_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 PLUGIN_SRC="$REPO_DIR/plugins"
@@ -276,6 +276,11 @@ install_extras() {
   apply_friendly_names
   command -v xdg-mime >/dev/null && [[ -f "$APPS_DIR/omawrite.desktop" || -f /usr/share/applications/omawrite.desktop ]] &&
     xdg-mime default omawrite.desktop text/plain
+  install_system_files
+}
+
+# Our own small programs and the one-bar guard's timer. Safe to repeat.
+install_system_files() {
   install -Dm755 "$SYSTEM_SRC/omnemo-one-bar" "$GUARD"
   install -Dm755 "$SYSTEM_SRC/omnemo-icons-update" "$ICON_UPDATER"
   install -Dm644 -t "$UNITS_DIR" "$SYSTEM_SRC/omnemo-one-bar.service" "$SYSTEM_SRC/omnemo-one-bar.timer"
@@ -388,7 +393,7 @@ omnemo_bin() { if [[ -x $OMNEMO_VENV/bin/omnemo ]]; then printf '%s\n' "$OMNEMO_
 omnemo_install() {
   {
     command -v python3 >/dev/null && command -v git >/dev/null || { say "memory: python3 and git are needed to install it" >&2; echo failed; return; }
-    say "memory: installing Omnemo (downloads a few hundred MB the first time; this can take several minutes)" >&2
+    say "memory: installing Omnemo (about 330 MB once installed; this can take several minutes)" >&2
     python3 -m venv "$OMNEMO_VENV" >&2 &&
     "$OMNEMO_VENV/bin/pip" install --quiet --disable-pip-version-check "$OMNEMO_URL@$OMNEMO_REF" >&2 &&
     mkdir -p "$(dirname "$OMNEMO_LINK")" && ln -sfn "$OMNEMO_VENV/bin/omnemo" "$OMNEMO_LINK" &&
@@ -396,15 +401,184 @@ omnemo_install() {
   } && {
     # setup rows that cannot be done (a harness that is not installed) are not
     # failures; a FAIL row is shown and kept, the rest still work.
-    "$OMNEMO_VENV/bin/omnemo" setup >&2 || say "memory: setup reported a problem above; 'omnemo-os repair' runs it again" >&2
+    omnemo_run setup >&2 || say "memory: setup reported a problem above; 'omnemo-os repair' runs it again" >&2
     echo installed
   } || { say "memory: could not install Omnemo (no internet?); the desktop still installs. Run 'omnemo-os repair' later." >&2; echo failed; }
+}
+
+# --- AI helpers (#4, #5) ------------------------------------------------------
+# Omarchy lists claude, codex and the rest as commands from the first day, but
+# most are stand-ins: the real program (hundreds of MB) is downloaded the first
+# time the command runs. Omnemo's setup runs each helper it finds in order to
+# register the memory with it, which used to pull those downloads in quietly.
+# So: a helper counts only when its program is really on this computer, and
+# setup runs with the stand-ins of the others hidden.
+HELPERS=(claude codex opencode crush gemini)
+MISE_DATA="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}"
+
+helper_state() {   # "$1" = command; prints ready | later | none
+  local c real found=none
+  while IFS= read -r c; do
+    real="$(readlink -f "$c" 2>/dev/null)" || continue
+    if [[ "$(basename "$real")" != mise ]]; then echo ready; return 0; fi
+    found=later   # a stand-in that fetches the program on first use
+  done < <(type -aP "$1" 2>/dev/null)
+  if [[ $found == later ]] && compgen -G "$MISE_DATA/installs/$1/*/" >/dev/null; then found=ready; fi
+  echo "$found"
+}
+
+helpers_in_state() {   # "$1" = ready | later; prints the names on one line
+  local n out=()
+  for n in "${HELPERS[@]}"; do
+    if [[ "$(helper_state "$n")" == "$1" ]]; then out+=("$n"); fi
+  done
+  printf '%s\n' "${out[*]}"
+}
+
+# Print a PATH on which the not-yet-downloaded helpers cannot be found. Any
+# folder holding one of their stand-ins is swapped for a folder of links to
+# everything else in it. "$1" = an empty scratch folder for those links.
+helpers_path() {
+  local scratch="$1" later d n e i=0 hide out=() dirs=()
+  later=" $(helpers_in_state later) "
+  IFS=: read -ra dirs <<<"$PATH"
+  for d in "${dirs[@]}"; do
+    [[ -n $d ]] || continue
+    hide=0
+    for n in $later; do
+      if [[ -e "$d/$n" || -L "$d/$n" ]]; then hide=1; fi
+    done
+    if (( hide )); then
+      i=$((i + 1)); mkdir -p "$scratch/$i"
+      for e in "$d"/*; do
+        [[ -e $e || -L $e ]] || continue
+        n="$(basename "$e")"
+        [[ $later == *" $n "* ]] || ln -s "$e" "$scratch/$i/$n"
+      done
+      out+=("$scratch/$i")
+    else out+=("$d"); fi
+  done
+  (IFS=:; printf '%s\n' "${out[*]}")
+}
+
+omnemo_run() {   # run Omnemo's own command with those helpers hidden
+  local scratch rc=0
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/omnemo-os-path.XXXXXX")" || return 1
+  PATH="$(helpers_path "$scratch")" "$OMNEMO_VENV/bin/omnemo" "$@" || rc=$?
+  find "$scratch" -mindepth 1 -delete; rmdir "$scratch"
+  return "$rc"
+}
+
+helpers_report() {
+  local ready later
+  ready="$(helpers_in_state ready)"; later="$(helpers_in_state later)"
+  if [[ -n $ready ]]; then say "memory: AI helpers on this computer: $ready"
+  else say "memory: no AI helper is on this computer yet"; fi
+  [[ -z $later ]] || say "memory: not downloaded and not connected: $later. Omarchy downloads one the first time you start it; then run 'omnemo-os repair' to give it the memory."
+  return 0
+}
+
+# What install will fetch, said before it starts. "$1" "$2" = 1 when the memory
+# program / the icons will be downloaded.
+download_notice() {
+  local later
+  if [[ $1 == 1 && $2 == 1 ]]; then say "this will download the memory program (about 330 MB once installed) and the colored icons (33 MB)"
+  elif [[ $1 == 1 ]]; then say "this will download the memory program (about 330 MB once installed)"
+  elif [[ $2 == 1 ]]; then say "this will download the colored icons (33 MB)"
+  else say "nothing to download: the memory program and the colored icons are already here"; fi
+  [[ $1 != 1 ]] || say "the memory step can take several minutes on a small computer or a slow line; it has not hung"
+  later="$(helpers_in_state later)"
+  [[ $1 != 1 || -z $later ]] || say "AI helpers that are not on this computer yet ($later) are NOT downloaded"
+  return 0
+}
+
+# The helpers' own settings files, which Omnemo's setup creates or edits. They
+# are the person's live files (sign-in, history), so they are never blindly put
+# back. At uninstall, after Omnemo has taken its own lines out:
+#   - a file nobody touched since our setup goes back exactly as it was before
+#     install (or is removed, if it was not there);
+#   - a file changed since then is left alone, unless all that separates it from
+#     its install-day self is the empty leftover key.
+CODEX_DIR="$HOME/.codex"
+HELPER_FILES=("$HOME/.claude.json" "$CODEX_DIR/config.toml" "$HOME/.config/crush/crush.json" "$HOME/.config/opencode/opencode.json" "$HOME/.gemini/settings.json")
+
+helpers_backup() {   # "$1" = backup dir; before the first setup
+  local f d h="$1/helpers"
+  mkdir -p "$h"; chmod 700 "$h"
+  : >"$h/absent.list"; : >"$h/absent-dirs.list"
+  for f in "${HELPER_FILES[@]}"; do
+    if [[ -e $f ]]; then mkdir -p "$h/files$(dirname "$f")"; cp -p "$f" "$h/files$f"
+    else printf '%s\n' "$f" >>"$h/absent.list"; fi
+    d="$(dirname "$f")"
+    [[ $d == "$HOME" || -d $d ]] || printf '%s\n' "$d" >>"$h/absent-dirs.list"
+  done
+}
+
+# Files that are exactly as our last setup left them (or still not there).
+helpers_unchanged() {   # "$1" = backup dir; prints paths
+  local f rec h="$1/helpers"
+  for f in "${HELPER_FILES[@]}"; do
+    if [[ -e $f ]]; then
+      rec="$(awk -F'\t' -v f="$f" '$2 == f { print $1 }' "$h/after-setup.tsv" 2>/dev/null)"
+      if [[ -n $rec && "$(sha256sum "$f" | cut -d' ' -f1)" == "$rec" ]]; then printf '%s\n' "$f"; fi
+    elif grep -qxF -e "$f" "$h/absent.list" 2>/dev/null; then printf '%s\n' "$f"; fi
+  done
+  return 0
+}
+
+# Note how setup left the files. "$2" = "all" (first setup) or the list from
+# helpers_unchanged taken just before a later setup: a file the person changed
+# in between is theirs from then on.
+helpers_mark() {
+  local f h="$1/helpers"
+  : >"$h/after-setup.tsv"
+  for f in "${HELPER_FILES[@]}"; do
+    [[ -e $f ]] || continue
+    [[ $2 == all ]] || grep -qxF -e "$f" <<<"$2" || continue
+    printf '%s\t%s\n' "$(sha256sum "$f" | cut -d' ' -f1)" "$f" >>"$h/after-setup.tsv"
+  done
+  return 0
+}
+
+helpers_restore() {   # "$1" = backup dir, "$2" = helpers_unchanged taken before disconnect
+  local f d was rest left=() h="$1/helpers"
+  for f in "${HELPER_FILES[@]}"; do
+    if [[ -e "$h/files$f" ]]; then was=present
+    elif grep -qxF -e "$f" "$h/absent.list" 2>/dev/null; then was=absent
+    else continue; fi
+    if grep -qxF -e "$f" <<<"$2"; then
+      if [[ $was == present ]]; then cp -p "$h/files$f" "$f"; else rm -f -- "$f"; fi
+      continue
+    fi
+    [[ -e $f ]] || continue
+    case "$f" in
+      *.json)
+        rest="$(jq -cS 'if type == "object" then with_entries(select(((.key == "mcp" or .key == "mcpServers") and .value == {}) | not)) else . end' "$f" 2>/dev/null)" || rest=""
+        if [[ $was == present && -n $rest && $rest == "$(jq -cS . "$h/files$f" 2>/dev/null)" ]]; then cp -p "$h/files$f" "$f"
+        elif [[ $was == absent && $rest == "{}" ]]; then rm -f -- "$f"
+        elif [[ $was == absent ]]; then left+=("$f"); fi ;;
+      *)
+        if [[ $was == absent && ! -s $f ]]; then rm -f -- "$f"
+        elif [[ $was == absent ]]; then left+=("$f"); fi ;;
+    esac
+  done
+  # Folders that were not there before install go too, once they are empty.
+  # Codex leaves an empty scratch folder tree behind; that goes with it.
+  while IFS= read -r d; do
+    [[ -n $d && -d $d ]] || continue
+    if [[ $d == "$CODEX_DIR" && "$(ls -A "$CODEX_DIR")" == tmp ]]; then
+      find "$CODEX_DIR/tmp" -depth -type d -empty -delete 2>/dev/null || true
+    fi
+    rmdir "$d" 2>/dev/null || true
+  done <"$h/absent-dirs.list"
+  (( ${#left[@]} == 0 )) || say "left in place, because it was used after install: ${left[*]}"
+  return 0
 }
 
 # Remove the program we installed. Memories (the store) are never touched.
 omnemo_remove() {
   if [[ -x $OMNEMO_VENV/bin/omnemo ]]; then
-    "$OMNEMO_VENV/bin/omnemo" disconnect --all-pieces >/dev/null 2>&1 ||
+    omnemo_run disconnect --all-pieces >/dev/null 2>&1 ||
       say "memory: some AI helpers could not be unregistered; see 'omnemo disconnect' output if one complains"
   fi
   [[ -L $OMNEMO_LINK && $(readlink "$OMNEMO_LINK") == "$OMNEMO_VENV/bin/omnemo" ]] && rm -f -- "$OMNEMO_LINK"
@@ -473,6 +647,11 @@ cmd_install() {
     [[ -e $f || -L $f ]] && die "$f already exists and is not ours; refusing (exact-stock promise)"
   done
 
+  local want_memory=1 want_icons=1
+  if omnemo_program_present; then want_memory=0; fi
+  if [[ -f $ICON_STORE/VERSION ]]; then want_icons=0; fi
+  download_notice "$want_memory" "$want_icons"
+
   local ts; ts="$(date -u +%Y%m%dT%H%M%SZ)"
   local bk="$OUR_STATE/backup/$ts"; mkdir -p "$bk" "$PLUGIN_DST"
   cp -p "$SHELL_JSON" "$bk/shell.json"
@@ -519,13 +698,14 @@ cmd_install() {
     om_was="present"; om_state="untouched"
     say "memory: Omnemo is already on this computer; leaving it exactly as it is"
   else
-    om_was="absent"; om_state="$(omnemo_install)"
+    om_was="absent"; helpers_backup "$bk"; om_state="$(omnemo_install)"
     if [[ $store_was == present && $om_state == installed ]]; then
       if omnemo_offer_fresh "Found N memories from before. Keep them?"; then
         store_was="deleted"
-        "$OMNEMO_VENV/bin/omnemo" setup >/dev/null 2>&1 || say "memory: setup reported a problem; 'omnemo-os repair' runs it again"
+        omnemo_run setup >/dev/null 2>&1 || say "memory: setup reported a problem; 'omnemo-os repair' runs it again"
       fi
     fi
+    helpers_mark "$bk" all
   fi
   tmp="$(mktemp)"
   jq --arg w "$om_was" --arg s "$om_state" --arg st "$store_was" --arg ref "$OMNEMO_REF" \
@@ -588,7 +768,8 @@ cmd_install() {
 
   restart_shell
   case "$om_state" in
-    installed) say "memory: on. Start a NEW session of your AI helper (claude, codex, ...) and it shares one memory." ;;
+    installed) say "memory: on. Start a NEW session of your AI helper (claude, codex, ...) and it shares one memory."
+               helpers_report ;;
     failed)    say "memory: NOT installed yet; run 'omnemo-os repair' when you are online" ;;
   esac
   say "installed. Undo: omnemo-os uninstall"
@@ -611,7 +792,10 @@ cmd_uninstall() {
   case "$(jq -r '.omnemo // "untouched"' "$RECORD")" in
     installed|failed)
       omnemo_offer_fresh "Keep your memories?" && fresh=1
-      omnemo_remove ;;
+      local same=""
+      if [[ -d "$bk/helpers" ]]; then same="$(helpers_unchanged "$bk")"; fi
+      omnemo_remove
+      if [[ -d "$bk/helpers" ]]; then helpers_restore "$bk" "$same"; fi ;;
   esac
 
   cp -p "$bk/shell.json" "$SHELL_JSON"   # also re-enables omarchy.dock: disabledPlugins lives in shell.json
@@ -682,6 +866,7 @@ cmd_status() {
     if [[ -f $ICON_STORE/VERSION ]]; then say "icons: colored (Papirus $(cat "$ICON_STORE/VERSION"))"
     else say "icons: one-color only; the colored icons are missing -- run 'omnemo-os repair'"; fi
     [[ "$(jq -r '.command_link // false' "$RECORD")" != true ]] || cmd_link_ok || say "the omnemo-os command link is broken -- run 'omnemo-os repair'"
+    [[ "$(jq -r '.omnemo // ""' "$RECORD")" != installed ]] || helpers_report
   fi
   return 0
 }
@@ -689,12 +874,20 @@ cmd_status() {
 # Put back what an Omarchy update may have reset, without touching the backup.
 cmd_repair() {
   [[ -f "$RECORD" ]] || die "not installed (no $RECORD)"
+  local rbk same=""; rbk="$(jq -r .backup_dir "$RECORD")"
   if [[ "$(jq -r '.omnemo // "untouched"' "$RECORD")" == failed ]] || { [[ "$(jq -r '.omnemo // ""' "$RECORD")" == installed ]] && ! omnemo_program_present; }; then
-    local st tmp; st="$(omnemo_install)"
-    tmp="$(mktemp)"; jq --arg s "$st" '.omnemo = $s' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+    local st tmp
+    if [[ -d "$rbk/helpers" ]]; then same="$(helpers_unchanged "$rbk")"; fi
+    st="$(omnemo_install)"
+    if [[ -d "$rbk/helpers" ]]; then helpers_mark "$rbk" "$same"; fi
+    tmp="$(mktemp)"; jq --arg s "$st" --arg ref "$OMNEMO_REF" '.omnemo = $s | .omnemo_ref = $ref' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
     [[ $st == installed ]] || die "memory: still could not install Omnemo (no internet?)"
+    helpers_report
   elif [[ "$(jq -r '.omnemo // ""' "$RECORD")" == installed ]]; then
-    "$OMNEMO_VENV/bin/omnemo" setup >/dev/null 2>&1 || say "memory: 'omnemo setup' reported a problem; run it by hand to see which"
+    if [[ -d "$rbk/helpers" ]]; then same="$(helpers_unchanged "$rbk")"; fi
+    omnemo_run setup >/dev/null 2>&1 || say "memory: 'omnemo setup' reported a problem; run it by hand to see which"
+    if [[ -d "$rbk/helpers" ]]; then helpers_mark "$rbk" "$same"; fi
+    helpers_report
   fi
   apply_friendly_names
   [[ -x $ICON_UPDATER ]] || install -Dm755 "$SYSTEM_SRC/omnemo-icons-update" "$ICON_UPDATER"
