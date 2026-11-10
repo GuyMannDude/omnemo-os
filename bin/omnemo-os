@@ -579,6 +579,10 @@ helpers_restore() {   # "$1" = backup dir, "$2" = helpers_unchanged taken before
     rmdir "$d" 2>/dev/null || true
   done <"$h/absent-dirs.list"
   (( ${#left[@]} == 0 )) || say "left in place, because it was used after install: ${left[*]}"
+  # The copies can name the account a helper is signed in with; they have done
+  # their job, so they do not stay behind with the rest of the backup.
+  find "$h" -mindepth 1 -delete 2>/dev/null || true
+  rmdir "$h" 2>/dev/null || true
   return 0
 }
 

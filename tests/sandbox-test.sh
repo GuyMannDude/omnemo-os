@@ -195,6 +195,7 @@ nope  "repair did not download a helper" test -s "$SB/downloads.log"
 as A "$SB/home-A/.local/bin/omnemo-os" uninstall >"$SB/A.uninstall.out" 2>&1 </dev/null
 check "uninstall exits 0" test $? = 0
 nope  "uninstall did not download a helper" test -s "$SB/downloads.log"
+nope  "no copy of a helper's settings stays in the backup" bash -c "ls -d '$SB/home-A/.local/state/omnemo-os/backup'/*/helpers"
 snapshot A >"$SB/A.after"
 if diff "$SB/A.before" "$SB/A.after" >"$SB/A.diff"; then ok "home is exactly as before install (#4: nothing left behind)"
 else bad "home differs after uninstall:"; sed 's/^/        /' "$SB/A.diff"; fi
