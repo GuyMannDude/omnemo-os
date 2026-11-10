@@ -308,6 +308,11 @@ restart_shell() {
   # download can outlast the idle lock); everything else is applied, so note it.
   omarchy restart shell || say "the bar did not restart (screen locked?); unlock, then run: omarchy restart shell"
   [[ -x "$GUARD" ]] && "$GUARD" || true
+  # The flag shows through a clear bar, and the bar is clear because of
+  # shell.toml. Once, right after a first install, the restarted shell kept a
+  # solid bar for minutes: it had not taken that file in yet (#6). The shell
+  # watches the file, so once it answers, nudge the file to have it read again.
+  if [[ -f $SHELL_TOML ]]; then wait_shell; sleep 2; touch -c "$SHELL_TOML" 2>/dev/null || true; fi
 }
 
 # --- colored icons (MANIFEST §3a) ---------------------------------------------
@@ -796,6 +801,7 @@ cmd_install() {
     failed)    say "memory: NOT installed yet; run 'omnemo-os repair' when you are online" ;;
   esac
   update_safety_note
+  say "if the bar is one plain colour with no flag after a minute, run: omarchy restart shell"
   say "installed. Undo: omnemo-os uninstall"
 }
 

@@ -255,6 +255,14 @@ if [[ -n $OLD && -x "$OLD/bin/omnemo-os" ]]; then
   check "the memory program moved to the new pin" grep -q "$(sed -n 's/^OMNEMO_REF="\(.*\)"/\1/p' "$REPO/bin/omnemo-os")" "$SB/home-C/.local/share/omnemo-venv/ref"
   check "the memories were not touched" grep -q "a memory" "$SB/home-C/.local/share/omnemo/store.db"
   nope  "update downloaded no AI helper" test -s "$SB/downloads.log"
+  # A second home where the person changed nothing: our colour block is swapped for the new one.
+  new_home D
+  as D "$OLD/bin/omnemo-os" install >/dev/null 2>&1; : >"$SB/downloads.log"
+  as D "$REPO/bin/omnemo-os" update >"$SB/D.update.out" 2>&1 </dev/null
+  check "untouched bar colours are replaced by this version's" bash -c "diff <(sed -n '/^# omnemo-os:begin/,/^# omnemo-os:end/p' '$SB/home-D/.config/omarchy/shell.toml') '$REPO/system/omnemo-look-flag.toml'"
+  check "  ...still one colour block" test "$(grep -c 'omnemo-os:begin' "$SB/home-D/.config/omarchy/shell.toml")" = 1
+  check "the flag's shader files are installed" test -s "$SB/home-D/.config/omarchy/plugins/guy.flag/flag.frag.qsb" -a -s "$SB/home-D/.config/omarchy/plugins/guy.flag/flag.frag"
+  nope  "an untouched home is told nothing was 'changed'" grep -q "you had changed\|you have changed" "$SB/D.update.out"
   cp "$SB/home-C/.config/hypr/bindings.lua" "$SB/C.bindings.1"
   as C "$REPO/bin/omnemo-os" update >"$SB/C.update2.out" 2>&1 </dev/null
   check "a second update changes nothing in bindings.lua" cmp "$SB/C.bindings.1" "$SB/home-C/.config/hypr/bindings.lua"
