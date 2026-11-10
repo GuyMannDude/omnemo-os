@@ -2,14 +2,22 @@
 
 Omarchy, made easy, made for memory.
 
-Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon, and the flag bar), made to run with [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: one command installs it, and one command puts your computer back exactly as it was.
+<!-- PICTURE SLOT. One screenshot of the desktop with the flag bar goes here,
+     then a ten-second clip (click a taskbar icon, open Tools, open the "?").
+     Both come from a stock install, not from anyone's own machine.
+     ![The Omnemo OS desktop: the flag bar along the bottom](docs/desktop.png)
+-->
 
-**Status: v0.9 Public Preview.** It runs on Omarchy 4.5 stable (out since 2026-11-05) and will be called 1.0 once the edition has survived a reboot and an `omarchy-update` on a stock machine. Expect rough edges, and tell us about them (see below).
+Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon, and the flag bar), made to run with [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: three lines you paste install it, and one command puts your computer back exactly as it was.
+
+**Status: v0.9 Public Preview.** It runs on Omarchy 4.5 stable (out since 2026-11-05). It will be called 1.0 when it has come through a full Omarchy version update on a stock computer with the edition on, and when three things are in: a hello on first start that shows the memory at work, windows that fit whatever screen is plugged in, and close and minimize buttons on windows. Expect rough edges, and tell us about them (see below).
+
+**Your windows will float.** Stock Omarchy tiles: windows fill the screen side by side and you steer them from the keyboard. Omnemo OS switches that to windows that overlap, that you drag and resize with the mouse, with a taskbar to find them again. If tiling is why you chose Omarchy, this is the biggest change you will notice; Super + L (Super is the Windows key) switches a workspace between the two and back.
 
 ## Two ways to get it
 
 1. **Just the memory.** Already on Omarchy and happy with it? Install [Omnemo](https://github.com/GuyMannDude/omnemo) on its own. Its guide shows you how to use it.
-2. **The whole thing: Omnemo OS.** Install Omarchy from its own installer, then run our one command below. It sets up the friendlier desktop and [Omnemo](https://github.com/GuyMannDude/omnemo) memory together. If Omnemo is already on your computer, it is left exactly as it is.
+2. **The whole thing: Omnemo OS.** Install Omarchy from its own installer, then paste the three lines below. It sets up the friendlier desktop and [Omnemo](https://github.com/GuyMannDude/omnemo) memory together. If Omnemo is already on your computer, it is left exactly as it is.
 
 ## Install
 
@@ -24,11 +32,30 @@ cd omnemo-os
 bin/omnemo-os install
 ```
 
-Omarchy 4.5 stable shipped on 2026-11-05; on an older 4.5 test version add `--allow-rc`. The memory part downloads a few hundred MB and the colored bar icons about 33 MB, so it needs the internet and a couple of minutes; if you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later. When it finishes, start a **new** session of your AI helper (Claude, Codex, ...) and it shares one memory with the others.
+Omarchy 4.5 stable shipped on 2026-11-05; on an older 4.5 test version add `--allow-rc`.
 
-**Before you run an Omarchy update** (Update → Omarchy), check one thing once: in a Terminal run `pacman -Qi omarchy | grep Reason`. If it says *dependency* instead of *Explicitly installed*, run `sudo pacman -D --asexplicit omarchy` first. A 4.5.0 migration removes a helper package with its dependencies, and on a few machines that took the desktop with it (black screen; [omarchy#18154](https://github.com/omacom/omarchy/issues/18154)). This is stock Omarchy, not the edition, and the line goes away once the fix lands.
+**What it downloads, and how long it takes.** The memory program (about 330 MB once installed) and the colored bar icons (33 MB). Before it changes anything, the installer says so. Allow a few minutes, more on a small computer or a slow line; the memory step is the long one and prints nothing while it works. If you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later.
 
-Afterwards, in any new Terminal: `omnemo-os status` shows what is installed (memory and icons included) and flags anything an Omarchy update reset; `omnemo-os repair` puts it back; `omnemo-os uninstall` puts everything back exactly as it was. You can delete the downloaded `omnemo-os` folder once it's installed. Want a new background? Tools → Theme & wallpaper now includes our own Hwy 180 at golden hour; your current wallpaper is never changed.
+**Your AI helpers.** The memory is for AI helpers such as Claude or Codex, which need their own account with their maker. Install connects the memory to the helpers that are already on your computer and downloads none. A helper you start for the first time later (Omarchy downloads it then) gets the memory when you run `omnemo-os repair`. After installing, start a **new** session of your helper and it shares one memory with the others.
+
+Afterwards, in any new Terminal:
+
+- `omnemo-os status` shows what is installed (memory and icons included) and flags anything an Omarchy update reset.
+- `omnemo-os repair` puts back what an update reset, and connects a newly arrived AI helper.
+- `omnemo-os update` moves you to the newest version. It asks nothing and leaves your memories and your own settings alone.
+- `omnemo-os uninstall` puts everything back exactly as it was.
+
+You can delete the downloaded `omnemo-os` folder once it's installed. Want a new background? Tools → Theme & wallpaper now includes our own Hwy 180 at golden hour; your current wallpaper is never changed.
+
+Installed 0.9.2 or earlier? Those have no update command. Get the new copy and let it update yours: `git clone https://github.com/GuyMannDude/omnemo-os`, then `cd omnemo-os`, then `bin/omnemo-os update`.
+
+### Before your next Omarchy update
+
+Check one thing, once. Run `omnemo-os status`. If it prints a line that starts "BEFORE your next Omarchy update", run the command it shows (`sudo pacman -D --asexplicit omarchy`; it asks for your password) before you update. If it prints no such line, there is nothing to do.
+
+Why: one step in the Omarchy 4.5.0 update removes a helper package along with anything that was installed only because of it, and on a few computers that took the desktop with it (black screen; [omarchy#18154](https://github.com/omacom/omarchy/issues/18154)). This is stock Omarchy, not the edition, and this section goes away once the fix lands.
+
+### Your memories
 
 Your memories are yours. Click **?** on the bar to see how many your AI helpers have saved. If memories from before are found when you install, you're asked "Keep them?", and uninstall asks "Keep your memories?" too. Pressing Enter always keeps them. Deleting takes typing the word DELETE, and a copy is saved first (`~/omnemo-memories-<date>.tar.gz`). Kept memories stay in `~/.local/share/omnemo`, and a later install picks them up where you left off.
 
@@ -47,9 +74,9 @@ If something breaks badly, `omnemo-os uninstall` puts your desktop back exactly 
 ## What's inside (you can skip this)
 
 - `MANIFEST.md` — every file and setting the edition touches, as written on the test laptop.
-- `INSTALLER-NOTES.md` — installer-side notes.
-- `bin/omnemo-os` (`install` / `uninstall` / `status` / `repair`) — the edition layer; install copies it to `~/.local/share/omnemo-os/app` and links `~/.local/bin/omnemo-os` to it.
-- `plugins/` — the edition's seven bar plugins, including the flag bar (`guy.flag`: blue behind the icons, red and white stripes between them). `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running) and `omnemo-icons-update`, which fetches the colored icons ([Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme), GPL-3.0, downloaded from its makers, never bundled here). Run `omnemo-icons-update` any time for the newest set.
+- `INSTALLER-NOTES.md` — installer-side notes and the test gate. `SECURITY-REVIEW.md` — what the edition runs, reads, writes and downloads.
+- `bin/omnemo-os` (`install` / `update` / `uninstall` / `status` / `repair`) — the edition layer; install copies it to `~/.local/share/omnemo-os/app` and links `~/.local/bin/omnemo-os` to it.
+- `plugins/` — the edition's seven bar plugins, including the flag bar (`guy.flag`: blue behind the icons, red and white stripes between them). `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running) `omnemo-window-minimize` (what Super + M runs), and `omnemo-icons-update`, which fetches the colored icons ([Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme), GPL-3.0, downloaded from its makers, never bundled here). Run `omnemo-icons-update` any time for the newest set.
 
 Omnemo OS is MIT licensed: see [LICENSE](LICENSE). Use it, change it, share it.
 
