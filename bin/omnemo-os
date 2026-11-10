@@ -379,7 +379,10 @@ cmd_link_ok() { [[ -L $CMD_LINK && "$(readlink "$CMD_LINK")" == "$APP_DIR/bin/om
 # setup`), pinned to a reviewed commit. A box that already has the Omnemo
 # program is left alone. uninstall removes the program only if we installed it
 # (by record) and never touches the memory store.
-OMNEMO_REF="335633defdf04c21e74ebf8350a4fb419037ae51"   # omnemo main, reviewed 2026-10-31
+# omnemo main as of 2026-11-09. It carries the one code change since the last
+# pin (the memory widget is off the bar unless asked for, tried on a real
+# Omarchy 4.5 computer 2026-11-07); everything after that change is documents.
+OMNEMO_REF="86de3209243828843f480fe7dfd4dccf4c5d9fa8"
 OMNEMO_URL="git+https://github.com/GuyMannDude/omnemo"
 OMNEMO_VENV="${XDG_DATA_HOME:-$HOME/.local/share}/omnemo-venv"
 OMNEMO_LINK="$HOME/.local/bin/omnemo"
