@@ -47,6 +47,8 @@ Afterwards, in any new Terminal:
 
 You can delete the downloaded `omnemo-os` folder once it's installed. Want a new background? Tools → Theme & wallpaper now includes our own Hwy 180 at golden hour; your current wallpaper is never changed.
 
+The flag on the bar moves: the stripes ripple like cloth, and it calms down by itself on battery. For a still flag, open `~/.config/omarchy/shell.toml`, find the line `# motion         = "off"` and delete the `#` at its start. If the bar is ever one plain colour with no flag, run `omarchy restart shell`.
+
 Installed 0.9.2 or earlier? Those have no update command. Get the new copy and let it update yours: `git clone https://github.com/GuyMannDude/omnemo-os`, then `cd omnemo-os`, then `bin/omnemo-os update`.
 
 ### Before your next Omarchy update
@@ -76,7 +78,7 @@ If something breaks badly, `omnemo-os uninstall` puts your desktop back exactly 
 - `MANIFEST.md` — every file and setting the edition touches, as written on the test laptop.
 - `INSTALLER-NOTES.md` — installer-side notes and the test gate. `SECURITY-REVIEW.md` — what the edition runs, reads, writes and downloads.
 - `bin/omnemo-os` (`install` / `update` / `uninstall` / `status` / `repair`) — the edition layer; install copies it to `~/.local/share/omnemo-os/app` and links `~/.local/bin/omnemo-os` to it.
-- `plugins/` — the edition's seven bar plugins, including the flag bar (`guy.flag`: blue behind the icons, red and white stripes between them). `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running) `omnemo-window-minimize` (what Super + M runs), and `omnemo-icons-update`, which fetches the colored icons ([Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme), GPL-3.0, downloaded from its makers, never bundled here). Run `omnemo-icons-update` any time for the newest set.
+- `plugins/` — the edition's seven bar plugins, including the flag bar (`guy.flag`: blue behind the icons, rippling red and white stripes between them; its small graphics program ships as readable `flag.frag` beside the compiled `flag.frag.qsb`). `system/` — the one-bar guard (a 30-second timer that keeps exactly one bar running) `omnemo-window-minimize` (what Super + M runs), and `omnemo-icons-update`, which fetches the colored icons ([Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme), GPL-3.0, downloaded from its makers, never bundled here). Run `omnemo-icons-update` any time for the newest set.
 
 Omnemo OS is MIT licensed: see [LICENSE](LICENSE). Use it, change it, share it.
 

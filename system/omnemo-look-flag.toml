@@ -20,4 +20,10 @@ hairline-alpha   = 0.35
 # #435ECE), Guy 11-07; the plugin default stays Old Glory #3C3B6E.
 [flag]
 blue             = "#435ECE"
+# The stripes ripple like cloth. To change that, take the "#" off ONE line:
+# motion         = "calm"   # slower and gentler (what it does on battery anyway)
+# motion         = "off"    # a still flag
+# motion         = "full"   # the full ripple even on battery
+# stars          = 0        # no stars at the ends of the blue fields
+# depth          = 0        # the flat flag of 0.9.2: no shine, no motion
 # omnemo-os:end
