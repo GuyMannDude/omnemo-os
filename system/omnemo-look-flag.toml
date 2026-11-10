@@ -20,8 +20,9 @@ hairline-alpha   = 0.35
 # #435ECE), Guy 11-07; the plugin default stays Old Glory #3C3B6E.
 [flag]
 blue             = "#435ECE"
-# The stripes ripple like cloth. To change that, take the "#" off ONE line:
-# motion         = "calm"   # slower and gentler (what it does on battery anyway)
+# The stripes ripple like cloth on mains power and hold still on battery.
+# To change that, take the "#" off ONE line:
+# motion         = "calm"   # slower and gentler, on mains and on battery
 # motion         = "off"    # a still flag
 # motion         = "full"   # the full ripple even on battery
 # stars          = 0        # no stars at the ends of the blue fields

@@ -47,7 +47,7 @@ Afterwards, in any new Terminal:
 
 You can delete the downloaded `omnemo-os` folder once it's installed. Want a new background? Tools → Theme & wallpaper now includes our own Hwy 180 at golden hour; your current wallpaper is never changed.
 
-The flag on the bar moves: the stripes ripple like cloth, and it calms down by itself on battery. For a still flag, open `~/.config/omarchy/shell.toml`, find the line `# motion         = "off"` and delete the `#` at its start. If the bar is ever one plain colour with no flag, run `omarchy restart shell`.
+The flag on the bar moves: the stripes ripple like cloth, and it holds still by itself on battery. For a still flag, open `~/.config/omarchy/shell.toml`, find the line `# motion         = "off"` and delete the `#` at its start. If the bar is ever one plain colour with no flag, run `omarchy restart shell`.
 
 Installed 0.9.2 or earlier? Those have no update command. Get the new copy and let it update yours: `git clone https://github.com/GuyMannDude/omnemo-os`, then `cd omnemo-os`, then `bin/omnemo-os update`.
 

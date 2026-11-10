@@ -19,7 +19,7 @@ import qs.Ui
 // straight through to the bar.
 //
 // Motion: [flag] motion = "auto" (default) | "full" | "calm" | "off" in
-// shell.toml. auto = full on mains power, calm on battery. It stops while a
+// shell.toml. auto = full on mains power, still on battery. It stops while a
 // fullscreen window covers the bar.
 BarWidget {
   id: root
@@ -49,7 +49,7 @@ BarWidget {
   readonly property string motion: {
     if (!depth || motionPref === "off") return "off"
     if (motionPref === "calm" || motionPref === "full") return motionPref
-    return UPower.onBattery ? "calm" : "full"
+    return UPower.onBattery ? "off" : "full"
   }
   readonly property bool moving: motion !== "off" && !covered && flag.visible
   // One slow clock for the cloth: 0..2*pi over 24 seconds, then round again.
