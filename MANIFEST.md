@@ -1,5 +1,5 @@
 # Omnemo OS — edition inventory (built on Omarchy, MIT)
-v0.9.2 Public Preview · updated 2026-11-07 PST · base: Omarchy 4.5.0 stable (4.5.0-3; installer gate = 4.5.0-1)
+v0.9.3 Public Preview · updated 2026-11-09 PST · base: Omarchy 4.5.0 stable (4.5.0-3; installer gate = 4.5.0-1)
 Rule: a layer on stock Omarchy, no fork. Everything below is user-level (no sudo), backed up at install, and put back byte-for-byte by `omnemo-os uninstall` (cold run #7: every path identical, content AND file modes).
 
 ## 1. Plugins we ship (~/.config/omarchy/plugins/)
@@ -31,12 +31,14 @@ Rename to one product namespace (e.g. omnemo-os.*) after CC's name check.
 | Window fit | new floating windows open centered and fit above the bar | marked block in ~/.config/hypr/hyprland.lua, max_size computed from the monitor at install | file backup |
 | Apps list | "Apps" entry in the Omarchy menu (the app grid lived in the disabled dock) | marked block in ~/.config/omarchy/extensions/omarchy-menu.jsonc (seeded from /usr/share/omarchy/config/... if absent) | file backup |
 | Super+Alt+Space | opens the Apps list (stock pointed at the dock) | marked block in ~/.config/hypr/bindings.lua | file backup |
+| Super+M | minimizes the window to our taskbar on every kind of workspace (stock 4.5 minimizes only on a floating one) | `o.rebind` line in the same marked block in ~/.config/hypr/bindings.lua; runs ~/.local/bin/omnemo-window-minimize | file backup |
 | Pointer | no jump to the window centre on a taskbar switch | `cursor.no_warps = true` block in ~/.config/hypr/looknfeel.lua | file backup |
 
 ## 3. Everyday-user extras
 | What | File | Why |
 |---|---|---|
 | One-bar guard | ~/.local/bin/omnemo-one-bar + ~/.config/systemd/user/omnemo-one-bar.{service,timer} (every 30 s) | Quickshell never cleans its runtime folders; when /run/user tmpfs fills, every restart stacks another bar. The guard keeps one launcher (TERM, never KILL, own processes only) and removes dead instance folders |
+| Minimize program | ~/.local/bin/omnemo-window-minimize | what Super+M runs: Omarchy's own minimize without its "floating workspaces only" rule. The taskbar brings the window back on any layout |
 | Friendly names | ~/.local/share/applications/{foot,omacalc,omawrite}.desktop → Terminal, Calculator, Writer | "foot" means nothing to a non-developer. Marked with `# omnemo-os: friendly name` |
 | Text files open in Writer | ~/.config/mimeapps.list (`xdg-mime default omawrite.desktop text/plain`) | stock opens .txt in nvim inside a terminal |
 | Icon-set stand-ins | ~/.local/share/icons/Yaru-gray, Yaru-grey (index.theme, Inherits=Yaru,hicolor) | stock White and Vantablack themes name icon sets that aren't installed, so app icons vanish (upstream report to file) |
@@ -52,14 +54,28 @@ Offline install: record `icons: failed`, the bar shows glyphs, status flags it, 
 wallpapers/hwy180-west-golden.jpg (2752x1536, 1.1 MB; AI-made with Gamma for Project Sparks: Highway 180 west into the Fresno valley at golden hour). Installed with the app copy; a link to it goes into ~/.config/omarchy/backgrounds/<theme>/ for every stock and user theme, so it shows in Theme & wallpaper (Super+Ctrl+W) whatever the theme. Never set as the current wallpaper. A same-named file already there is skipped. Record `wallpaper.links` / `wallpaper.dirs`; uninstall removes only those links (still pointing at our copy) and the folders it created, if empty.
 
 ## 4. Commands
-`omnemo-os install [--allow-rc]` · `uninstall` · `status` · `repair`
+`omnemo-os install [--allow-rc]` · `update [--allow-rc]` · `uninstall` · `status` · `repair`
 - install copies bin/, plugins/, system/ and layout.json to ~/.local/share/omnemo-os/app and links ~/.local/bin/omnemo-os there (on PATH in Omarchy's bash envs), so the clone can be deleted. Uninstall removes both last (record `command_link: true`); status flags a broken link, repair relinks.
 - Omarchy's "omarchy-shell is not responding" line from a busy shell is hidden on the first try of each shell step; it shows only if the retry also fails.
 - status also reports the icons; flags when an Omarchy update reset the friendly names (omarchy-refresh-applications re-copies foot.desktop) or the guard is off.
 - repair puts both back and checks its own result; safe to run any time, any number of times.
+- install says what it will download, and how big, before it changes anything (memory program about 330 MB once installed, icons 33 MB), and names the AI helpers it will not download.
+- status and the end of install say which AI helpers have the memory and which are not on the computer yet; both print the one-line `sudo pacman -D --asexplicit omarchy` advice when (and only when) Omarchy is marked as installed-as-a-dependency (omarchy#18154).
+
+## 4b. Update (0.9.3)
+`omnemo-os update` moves an installed edition to a newer one, in place, with no questions.
+- From the installed command: looks up the newest release tag, downloads it to a temporary folder, and hands over to that copy. Already newest = says so and stops. No internet = says so, changes nothing.
+- From a downloaded copy (`./bin/omnemo-os update`): applies that copy. This is how an edition from before 0.9.3 (which has no update command) moves up.
+- The install-day backup and record stay the baseline, so uninstall after any number of updates still goes back to the computer as it was before the first install. Files this version manages that the installed one did not are noted first (present = copied into the backup, absent = listed for removal).
+- Ours, so replaced: the plugins, our small programs, the guard units, the marked blocks in hyprland.lua (window size worked out again for today's screen), bindings.lua, looknfeel.lua and the menu file, the installed copy and the command link.
+- The person's, so kept: a bar layout or bar-colour block that no longer matches what the installed version wrote stays as it is (one line says so). A plugin that differs from the installed version's copy is saved to ~/.local/state/omnemo-os/replaced/<time>/plugins/ before ours replaces it, and the last lines of the update name it.
+- Memory: only if the record says we installed Omnemo, and only when the pinned commit moved: `pip install --upgrade` of the new pin into the same venv, then `omnemo setup`. The store is never touched. Failure leaves the old program working.
+- Never goes backwards (an older copy refuses).
 
 ## 4a. Omnemo memory (0.9.1)
-- install: if the Omnemo program is absent (no ~/.local/share/omnemo-venv, no ~/.local/bin/omnemo), set it up the INSTALL.md way, no sudo: venv + `pip install git+https://github.com/GuyMannDude/omnemo@<OMNEMO_REF>` (pinned, reviewed commit) + link + `omnemo setup` (skill + links in ~/.agents ~/.claude ~/.codex ~/.pi/agent, omnemo.memory plugin dir, omnemo-warm.service, MCP registration for claude/codex/opencode/crush/gemini). Runs BEFORE the layout write, so omnemo.memory is installed but never on the bar.
+- install: if the Omnemo program is absent (no ~/.local/share/omnemo-venv, no ~/.local/bin/omnemo), set it up the INSTALL.md way, no sudo: venv + `pip install git+https://github.com/GuyMannDude/omnemo@<OMNEMO_REF>` (pinned, reviewed commit; 0.9.3 pins `86de3209`, main of 2026-11-09: the one code change since the last pin keeps the memory widget off the bar unless asked for, the rest is documents) + link + `omnemo setup` (skill + links in ~/.agents ~/.claude ~/.codex ~/.pi/agent, omnemo.memory plugin dir, omnemo-warm.service, MCP registration for claude/codex/opencode/crush/gemini). Runs BEFORE the layout write, so omnemo.memory is installed but never on the bar.
+- Only helpers that are really on the computer (0.9.3, #5). Omarchy lists claude, codex and others as commands from day one, but they are stand-ins that download the real program (hundreds of MB) on first run, and `omnemo setup` runs each helper it finds. The installer now counts a helper only when its command leads to a real program (or its folder under ~/.local/share/mise/installs/ exists), and runs `omnemo setup` and `omnemo disconnect` with the stand-ins of the others hidden from PATH. A helper that arrives later gets the memory from `omnemo-os repair`.
+- The helpers' own settings files (0.9.3, #4): ~/.claude.json, ~/.codex/config.toml, ~/.config/crush/crush.json, ~/.config/opencode/opencode.json, ~/.gemini/settings.json. Before the first `omnemo setup` each is copied into the backup (folder mode 700) or listed as absent, and its checksum is noted after setup. At uninstall, after `omnemo disconnect`: a file still exactly as setup left it goes back byte for byte (or is removed if it was absent, with its folder when that was absent and is now empty); a file used since then is the person's and stays, unless the only difference from its install-day self is the empty `mcp`/`mcpServers` key, in which case the install-day copy goes back. These files hold sign-ins and history, so they are never restored blindly.
 - Already present: recorded `omnemo_was: present`, nothing run, uninstall leaves it alone.
 - Offline/failure: the desktop install goes on, record says `omnemo: failed`, status flags it, repair retries.
 - uninstall (only when the record says we installed it): `omnemo disconnect --all-pieces`, then remove the link and the venv. The store ~/.local/share/omnemo (memories + skill copy) is NEVER removed; uninstall prints where it is. A later install finds and keeps it.
@@ -85,4 +101,5 @@ Window address validated before every dispatch; launches built as argv; help wal
 - omarchy-update ran clean with Omnemo OS on; an Omarchy version bump is untested until 4.5 stable, and status/repair is the backstop (foot.desktop reset is the known case).
 - Chrome site notifications arrive as critical and stay until dismissed; turn them off per site in Chrome. Upstream suggestion drafted, unposted (~/omnemo-os-pending/upstream-issue-notifications.md).
 - quickshell logs "Module path ... is outside of the config folder" for every user plugin: harmless, stock behaviour.
-- Plugin manifests at 0.9.2.
+- Plugin manifests at 0.9.3 (guy.flag keeps its own number).
+- An edition installed by 0.9.2 or earlier and then updated: what that older install left in the helpers' settings files and the helper programs it downloaded (#4, #5) are not cleaned up by update or by a later uninstall; nothing recorded how those files were before.

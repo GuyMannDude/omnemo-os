@@ -37,7 +37,15 @@ A stranger's run from the README on today's ISO (sha256 + GPG verified), whole-h
 - **omarchy#18154 (open, fix PR #18155 open):** migration `1790528634.sh` ends with `omarchy-pkg-drop elsewhen` (`pacman -Rns`); where `omarchy` was only a dependency of `elsewhen`, the desktop goes with it. README now carries a one-line pre-update check (`pacman -Qi omarchy | grep Reason` → `sudo pacman -D --asexplicit omarchy`). Drop the README line when #18155 merges. Our production box is not exposed (explicit install, no elsewhen).
 - **omarchy#17952 (open):** after 4.0.6 → 4.5.0-3 an `omarchy.agents` clone repeated ~100× across the bar, journal `ShellIpc is not a type`. We ship `omarchy.agents` in `left`. After any edition box takes 4.5.0-3: 10-minute bar/menus/flag check + `journalctl --user -b | grep -c 'ShellIpc is not a type'`, report on the bus.
 - **omarchy#17891:** Osaka Jade theme no longer bundled; its users lost theme files on update. Not ours; the edition never changes the theme.
-- **4.5 made `Super+M` a stock minimize-to-dock key, floating workspaces only.** 0.9.3 candidate: `omnemo-window-minimize` + `o.rebind("SUPER + M", ...)` so it minimizes to our taskbar on tiling, scrolling and floating workspaces, restores from the taskbar, and leaves stock `Super+M` untouched on a box without the edition (live on our production box since 2026-11-07).
+- **4.5 made `Super+M` a stock minimize-to-dock key, floating workspaces only.** Shipped in 0.9.3: `omnemo-window-minimize` + `o.rebind("SUPER + M", ...)` in our bindings.lua block, so it minimizes to our taskbar on tiling, scrolling and floating workspaces, restores from the taskbar, and leaves stock `Super+M` untouched on a box without the edition (live on our production box since 2026-11-07).
+
+## Test gate (0.9.3)
+Before a release, in this order:
+1. `tests/gate-test.sh bin/omnemo-os` — logic walk of the Omarchy version gate.
+2. `tests/sandbox-test.sh <older checkout>` — the real script in a throwaway home with stand-ins for the desktop, pacman, pip and the AI helpers: install, status, repair, uninstall, the Claude-is-installed cases, and update from the older checkout. It proves the script's own logic and nothing about a real desktop.
+3. Cold run on a stock Omarchy in the lab VM: install, look, uninstall, compare the home folder before and after.
+4. Update run in the lab VM: install the previous release, `./bin/omnemo-os update` from the new copy, look, then uninstall and compare.
+5. `tests/bar-check.sh` after every install, every `omnemo-os update`, and after any `omarchy update` taken with the edition on (omarchy#17952: a repeated AI meter and "is not a type" in the shell log). It looks only; the last lines list what a person must still check by eye.
 
 ## Still owed
 - Rename plugins to one product namespace (`omnemo-os.*`).
