@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# omnemo-os — install / uninstall / status / repair for the Omnemo OS edition layer.
+# omnemo-os — install / update / uninstall / status / repair for the Omnemo OS edition layer.
 # v0.9 (2026-10-30) written from MANIFEST.md; three cold runs on a stock Omarchy
 # 4.5.0rc2 laptop 2026-10-30: install, clicks, uninstall, byte-diff all PASS.
 # Contract: user-level only, no sudo, no stock file edits. install backs up every
@@ -764,7 +764,7 @@ cmd_install() {
   local wp; wp="$(wallpaper_link)"
   tmp="$(mktemp)"; jq --argjson w "$wp" '. + {wallpaper:$w}' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
   say "wallpaper: Hwy 180 at golden hour added to every theme's wallpaper choices (Tools > Theme & wallpaper)"
-  say "the omnemo-os command is ready in any new terminal: omnemo-os status | repair | uninstall"
+  say "the omnemo-os command is ready in any new terminal: omnemo-os status | update | repair | uninstall"
 
   restart_shell
   case "$om_state" in
@@ -911,11 +911,217 @@ cmd_repair() {
   say "friendly names, the one-bar guard, colored icons and the omnemo-os command are back"
 }
 
+# --- update -------------------------------------------------------------------
+# Move an installed edition to a newer one, in place and without questions.
+# The install-day backup stays the thing uninstall goes back to, so "one command
+# puts your computer back exactly as it was" still holds after any number of
+# updates. Memories are never touched. What the person changed since install is
+# kept: a bar they rearranged and colours they edited stay as they are, and a
+# plugin they edited is saved to one side before ours replaces it.
+#
+# Run from the installed copy (plain `omnemo-os update`) it downloads the newest
+# release and hands over to that copy. Run from a downloaded copy
+# (`./bin/omnemo-os update`) it applies that copy; this is also how an edition
+# from before the update command existed moves up.
+REPO_URL="${OMNEMO_OS_URL:-https://github.com/GuyMannDude/omnemo-os}"
+
+ver_lt() { [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" == "$1" ]]; }
+
+# Swap our marked block in file "$1" for the text "$2" ("$3"/"$4" = its first
+# and last line). Returns 1, changing nothing, when the file has no such block.
+block_replace() {
+  grep -qxF -e "$3" "$1" 2>/dev/null || return 1
+  local tmp; tmp="$(mktemp)"
+  BLK="$2" awk -v b="$3" -v e="$4" '$0 == b { print ENVIRON["BLK"]; skip = 1 } !skip { print } $0 == e { skip = 0 }' "$1" >"$tmp" && put "$tmp" "$1"
+}
+block_text() {   # print our marked block from file "$1" ("$2"/"$3" = first and last line)
+  awk -v b="$2" -v e="$3" '$0 == b { on = 1 } on { print } $0 == e { on = 0 }' "$1" 2>/dev/null
+}
+
+# A file an older edition never wrote to: remember how it is now (that is how it
+# was before install) so uninstall can put it back. "$1" file, "$2" name in the
+# backup, "$3" record key. Prints nothing; updates the record.
+adopt_file() {
+  local was=absent tmp
+  [[ "$(jq -r --arg k "$3" '.[$k] // "untouched"' "$RECORD")" == untouched ]] || return 0
+  if [[ -f $1 ]]; then cp -p "$1" "$UPD_BK/$2"; was=present; fi
+  tmp="$(mktemp)"; jq --arg k "$3" --arg w "$was" '.[$k] = $w' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+}
+
+cmd_update() {
+  local allow_rc=0
+  [[ "${1:-}" == "--allow-rc" ]] && allow_rc=1
+  need omarchy; need jq
+  [[ -f "$RECORD" ]] || die "Omnemo OS is not installed on this computer; to install it run: omnemo-os install"
+  local from; from="$(jq -r '.edition_version // "0.9.0"' "$RECORD")"
+
+  # From the installed copy: fetch the newest release and let it do the work.
+  if [[ "$(readlink -f "$REPO_DIR")" == "$(readlink -f "$APP_DIR" 2>/dev/null)" ]]; then
+    need git
+    local ref="${OMNEMO_OS_REF:-}" dl rc=0
+    if [[ -z $ref ]]; then
+      ref="$(git ls-remote --tags --refs "$REPO_URL" 'v*' 2>/dev/null | sed 's#.*refs/tags/##' | sort -V | tail -n1)"
+      [[ -n $ref ]] || die "could not look for a newer version (no internet?); nothing was changed"
+      if [[ "${ref#v}" == "$from" ]] || ver_lt "${ref#v}" "$from"; then say "already on the newest version ($from); nothing to do"; return 0; fi
+    fi
+    dl="$(mktemp -d "${TMPDIR:-/tmp}/omnemo-os-update.XXXXXX")"
+    say "downloading Omnemo OS ${ref#v} (a few MB)"
+    if git clone --quiet --depth 1 --branch "$ref" "$REPO_URL" "$dl/omnemo-os"; then
+      "$dl/omnemo-os/bin/omnemo-os" update "$@" || rc=$?
+    else
+      rc=1; say "the download failed (no internet?); nothing was changed" >&2
+    fi
+    find "$dl" -mindepth 1 -delete 2>/dev/null; rmdir "$dl" 2>/dev/null || true
+    exit "$rc"
+  fi
+
+  # From here on this is the new copy, applying itself over the installed one.
+  ver_lt "$VERSION" "$from" && die "this copy is version $VERSION, older than the installed $from; not going backwards"
+  check_version "$allow_rc"
+  [[ -r "$LAYOUT_JSON" ]] || die "missing $LAYOUT_JSON"
+  [[ -f "$SHELL_JSON" ]]  || die "no $SHELL_JSON; is this an Omarchy box?"
+  local p f
+  for p in "${PLUGINS[@]}"; do [[ -d "$PLUGIN_SRC/$p" ]] || die "plugin source missing: $PLUGIN_SRC/$p"; done
+  for f in omnemo-one-bar omnemo-one-bar.service omnemo-one-bar.timer omnemo-icons-update omnemo-look-flag.toml; do
+    [[ -f "$SYSTEM_SRC/$f" ]] || die "missing $SYSTEM_SRC/$f"
+  done
+  [[ -f "$REPO_DIR/wallpapers/$WALLPAPER" ]] || die "missing $REPO_DIR/wallpapers/$WALLPAPER"
+  UPD_BK="$(jq -r .backup_dir "$RECORD")"
+  [[ -f "$UPD_BK/shell.json" ]] || die "the install-day backup is missing ($UPD_BK); refusing, because uninstall could no longer put things back"
+  if [[ "$(jq -r '.command_link // false' "$RECORD")" != true ]]; then
+    for f in "$CMD_LINK" "$APP_DIR"; do
+      [[ -e $f || -L $f ]] && die "$f already exists and is not ours; refusing"
+    done
+  fi
+  local rule; rule="$(windowrule_block)"   # computed before any change, as at install
+
+  local ts keep old="$APP_DIR" tmp
+  ts="$(date -u +%Y%m%dT%H%M%SZ)"; keep="$OUR_STATE/replaced/$ts"
+  if [[ $from == "$VERSION" ]]; then say "version $VERSION is already installed; putting its files in place again"
+  else say "updating $from to $VERSION. Your memories and your own settings are not touched."; fi
+
+  # 1. Anything this version looks after that the installed one did not: note
+  #    how it is now, so uninstall puts it back (or removes what we add).
+  [[ -f "$UPD_BK/absent.list" ]] || : >"$UPD_BK/absent.list"
+  while IFS= read -r f; do
+    [[ -e "$UPD_BK/files$f" ]] && continue
+    grep -qxF -e "$f" "$UPD_BK/absent.list" && continue
+    if [[ -e $f ]]; then mkdir -p "$UPD_BK/files$(dirname "$f")"; cp -p "$f" "$UPD_BK/files$f"
+    else printf '%s\n' "$f" >>"$UPD_BK/absent.list"; fi
+  done < <(managed_files)
+  adopt_file "$MENU_JSONC" omarchy-menu.jsonc menu_jsonc_was
+  adopt_file "$BIND_LUA" bindings.lua bindings_lua_was
+  adopt_file "$LOOK_LUA" looknfeel.lua looknfeel_lua_was
+
+  # 2. Plugins. One that differs from the copy we installed was edited by the
+  #    person (or their AI helper): keep theirs to one side, then install ours.
+  local edited=()
+  mkdir -p "$PLUGIN_DST"
+  for p in "${PLUGINS[@]}"; do
+    if [[ -d "$PLUGIN_DST/$p" ]]; then
+      diff -rq "$PLUGIN_SRC/$p" "$PLUGIN_DST/$p" >/dev/null 2>&1 && continue
+      if ! { [[ -d "$old/plugins/$p" ]] && diff -rq "$old/plugins/$p" "$PLUGIN_DST/$p" >/dev/null 2>&1; }; then
+        mkdir -p "$keep/plugins"; cp -r "$PLUGIN_DST/$p" "$keep/plugins/$p"; edited+=("$p")
+      fi
+      rm -rf -- "${PLUGIN_DST:?}/${p:?}"
+    fi
+    cp -r "$PLUGIN_SRC/$p" "$PLUGIN_DST/$p"
+  done
+
+  # 3. The bar layout and colours: ours only while they are still as we wrote them.
+  local cur new
+  cur="$(jq -cS '.bar.layout' "$SHELL_JSON")"; new="$(jq -cS . "$LAYOUT_JSON")"
+  if [[ $cur == "$new" ]]; then :
+  elif [[ -f "$old/layout.json" && $cur == "$(jq -cS . "$old/layout.json")" ]]; then
+    tmp="$(mktemp)"; jq --slurpfile L "$LAYOUT_JSON" '.bar.layout = $L[0]' "$SHELL_JSON" >"$tmp" && put "$tmp" "$SHELL_JSON"
+  else say "the bar: you have arranged it your own way, so its layout stays as you have it"; fi
+  local tb="# omnemo-os:begin (managed; removed by omnemo-os uninstall)" te="# omnemo-os:end"
+  cur="$(block_text "$SHELL_TOML" "$tb" "$te")"; new="$(cat "$SYSTEM_SRC/omnemo-look-flag.toml")"
+  if [[ -z $cur ]] && ver_lt "$from" 0.9.2; then   # installed before the flag bar existed
+    mkdir -p "$(dirname "$SHELL_TOML")"
+    { [[ -s $SHELL_TOML ]] && printf '\n'; printf '%s\n' "$new"; } >>"$SHELL_TOML"
+  elif [[ -z $cur ]]; then say "the bar colours: you have taken ours out, so they stay out"
+  elif [[ $cur == "$new" ]]; then :
+  elif [[ -f "$old/system/omnemo-look-flag.toml" && $cur == "$(cat "$old/system/omnemo-look-flag.toml")" ]]; then
+    block_replace "$SHELL_TOML" "$new" "$tb" "$te"
+  else say "the bar colours: you have changed them, so they stay as you have them"; fi
+
+  # 4. Our marked blocks in the Hyprland and menu files: always ours, so swap
+  #    them (the window-size rule is worked out again for today's screen).
+  mkdir -p "$(dirname "$HYPR_LUA")"; [[ -f "$HYPR_LUA" ]] || : >"$HYPR_LUA"
+  block_replace "$HYPR_LUA" "$rule" "$RULE_BEGIN" "$RULE_END" || printf '\n%s\n' "$rule" >>"$HYPR_LUA"
+  [[ -f "$BIND_LUA" ]] || : >"$BIND_LUA"
+  block_replace "$BIND_LUA" "$(bindings_block)" "$RULE_BEGIN" "$RULE_END" || printf '\n%s\n' "$(bindings_block)" >>"$BIND_LUA"
+  [[ -f "$LOOK_LUA" ]] || : >"$LOOK_LUA"
+  block_replace "$LOOK_LUA" "$(looknfeel_block)" "$RULE_BEGIN" "$RULE_END" || printf '\n%s\n' "$(looknfeel_block)" >>"$LOOK_LUA"
+  mkdir -p "$(dirname "$MENU_JSONC")"
+  if [[ ! -f "$MENU_JSONC" ]]; then
+    if [[ -f "$MENU_SEED" ]]; then cp -p "$MENU_SEED" "$MENU_JSONC"; else printf '{\n}\n' >"$MENU_JSONC"; fi
+  fi
+  if ! block_replace "$MENU_JSONC" "$(menu_block)" "  $MENU_BEGIN" "  $MENU_END"; then
+    if grep -qE '^[[:space:]]*"apps"[[:space:]]*:' "$MENU_JSONC"; then say "the menu already has its own Apps entry; leaving it"
+    else menu_insert "$MENU_JSONC"; fi
+  fi
+  omarchy-menu refresh >/dev/null 2>&1 || true
+  hyprctl reload >/dev/null 2>&1 || true
+
+  # 5. Our small programs, the guard, and the friendly names.
+  apply_friendly_names
+  install_system_files
+
+  # 6. Memory: only the program, and only if we installed it. The store stays.
+  local om same=""
+  om="$(jq -r '.omnemo // "untouched"' "$RECORD")"
+  if [[ $om == installed && -x "$OMNEMO_VENV/bin/pip" ]]; then
+    if ! "$OMNEMO_VENV/bin/pip" freeze 2>/dev/null | grep -qF "@$OMNEMO_REF"; then
+      say "memory: updating the memory program (your memories stay exactly as they are)"
+      if [[ -d "$UPD_BK/helpers" ]]; then same="$(helpers_unchanged "$UPD_BK")"; fi
+      if "$OMNEMO_VENV/bin/pip" install --quiet --disable-pip-version-check --upgrade "$OMNEMO_URL@$OMNEMO_REF" >&2 &&
+         { "$OMNEMO_VENV/bin/pip" freeze 2>/dev/null | grep -qF "@$OMNEMO_REF" ||
+           "$OMNEMO_VENV/bin/pip" install --quiet --disable-pip-version-check --force-reinstall --no-deps "$OMNEMO_URL@$OMNEMO_REF" >&2; }; then
+        omnemo_run setup >/dev/null 2>&1 || say "memory: setup reported a problem; 'omnemo-os repair' runs it again"
+        tmp="$(mktemp)"; jq --arg ref "$OMNEMO_REF" '.omnemo_ref = $ref' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+      else
+        say "memory: could not fetch the newer memory program (no internet?). The one you have keeps working; run 'omnemo-os update' again later."
+      fi
+      if [[ -d "$UPD_BK/helpers" ]]; then helpers_mark "$UPD_BK" "$same"; fi
+    fi
+  elif [[ $om == failed ]]; then
+    say "memory: it was not installed yet; run 'omnemo-os repair' when you are online"
+  fi
+
+  # 7. Icons, only if they are ours and this version names a different set.
+  local ic; ic="$(jq -r '.icons // "untouched"' "$RECORD")"
+  if [[ $ic =~ ^(installed|failed)$ ]] && { [[ ! -f $ICON_STORE/VERSION ]] || [[ "$(jq -r '.icons_tag // ""' "$RECORD")" != "$ICONS_TAG" ]]; }; then
+    ic="$(icons_install)"
+    tmp="$(mktemp)"; jq --arg s "$ic" --arg t "$ICONS_TAG" '.icons = $s | .icons_tag = $t' "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+  fi
+
+  # 8. The installed copy and the command, the wallpaper links, the record.
+  app_install
+  local wp; wp="$(wallpaper_link)"
+  tmp="$(mktemp)"
+  jq --arg v "$VERSION" --arg from "$from" --arg ts "$ts" --argjson w "$wp" \
+     --argjson plugins "$(printf '%s\n' "${PLUGINS[@]}" | jq -R . | jq -s .)" \
+     '.edition_version = $v | .updated_at = $ts | .updated_from = $from | .extras = true | .command_link = true
+      | .plugins = ((.plugins // []) + $plugins | unique)
+      | .wallpaper = {links: (((.wallpaper.links // []) + $w.links) | unique), dirs: (((.wallpaper.dirs // []) + $w.dirs) | unique)}' \
+     "$RECORD" >"$tmp" && mv "$tmp" "$RECORD"
+
+  restart_shell
+  if (( ${#edited[@]} )); then
+    say "you had changed these parts of the bar: ${edited[*]}"
+    say "  they are now the new version; your own copies are saved in $keep/plugins"
+  fi
+  say "updated to $VERSION. Undo everything, as before: omnemo-os uninstall"
+}
+
 sub="${1:-}"; case "$(basename "$0")" in omnemo-os-install) sub=install; set -- "$@" ;; omnemo-os-uninstall) sub=uninstall ;; esac
 case "$sub" in
   install)   [[ "${1:-}" == install ]] && shift; cmd_install "$@" ;;
   uninstall) cmd_uninstall ;;
   status)    cmd_status ;;
   repair)    cmd_repair ;;
-  *) printf 'usage: omnemo-os install [--allow-rc] | uninstall | status | repair\n'; exit 2 ;;
+  update)    shift; cmd_update "$@" ;;
+  *) printf 'usage: omnemo-os install [--allow-rc] | update [--allow-rc] | uninstall | status | repair\n'; exit 2 ;;
 esac
