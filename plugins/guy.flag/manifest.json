@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "guy.flag",
   "name": "Flag Bar",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Project Sparks",
-  "description": "Paints the bar like a flag: blue behind each group of icons, red and white stripes in the open space",
+  "description": "Paints the bar like a flag: glass-blue fields with a star behind each group of icons, red and white stripes that ripple like cloth in the open space",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "Flag bar",
-    "description": "Blue behind the icons, red and white stripes between them (needs a clear bar background)",
+    "description": "Blue behind the icons, rippling red and white stripes between them (needs a clear bar background)",
     "category": "System",
     "allowMultiple": false
   }

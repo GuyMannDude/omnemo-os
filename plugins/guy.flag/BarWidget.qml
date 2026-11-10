@@ -1,16 +1,26 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
+import Quickshell.Services.UPower
 import qs.Commons as Commons
 import qs.Ui
 
-// The bar as a flag (Guy, 2026-11-07): blue fields behind each group of
-// icons, red and white horizontal stripes in the open space between them.
-// This widget takes no room on the bar. It paints on its own layer just
-// under the bar, which must be clear (bar background-alpha = 0 in
+// The bar as a flag (Guy, 2026-11-07), now alive (Guy, 2026-11-09: "make it
+// pop"): the red and white stripes ripple like cloth in a light breeze, the
+// blue fields behind each group of icons are glass with a white star in their
+// end caps, and now and then a glint of light crosses the whole bar.
+//
+// This widget takes no room on the bar. It paints on its own layer just under
+// the bar, which must be clear (bar background-alpha = 0 in
 // ~/.config/omarchy/shell.toml) for the flag to show through. Clicks pass
 // straight through to the bar.
+//
+// Motion: [flag] motion = "auto" (default) | "full" | "calm" | "off" in
+// shell.toml. auto = full on mains power, calm on battery. It stops while a
+// fullscreen window covers the bar.
 BarWidget {
   id: root
   moduleName: "guy.flag"
@@ -18,19 +28,42 @@ BarWidget {
   implicitWidth: 0
   implicitHeight: 0
 
-  // Colours: [flag] keys in ~/.config/omarchy/shell.toml, else Old Glory.
-  readonly property color red: Commons.Color.pick("flag.red", "#B22234")
+  // Colours: [flag] keys in ~/.config/omarchy/shell.toml.
+  readonly property color red: Commons.Color.pick("flag.red", "#C21F35")
   readonly property color white: Commons.Color.pick("flag.white", "#FFFFFF")
   readonly property color blue: Commons.Color.pick("flag.blue", "#3C3B6E")
   readonly property int stripes: Math.max(3, Math.min(7, Number(Commons.Color.pick("flag.stripes", "5")) || 5))
   readonly property int fieldPad: 6       // blue reaches this far past the icons
-  // Depth (Guy 11-07: "make it pop"). [flag] depth = 0 turns it all off.
+  readonly property int capPad: 21        // ...or this far where there is room for a star
+  // Depth (Guy 11-07: "make it pop"). [flag] depth = 0 gives the flat flag, no motion.
   readonly property bool depth: Commons.Color.pick("flag.depth", "1") !== "0"
-  readonly property bool stars: Commons.Color.pick("flag.stars", "0") === "1"
+  readonly property bool stars: Commons.Color.pick("flag.stars", "1") !== "0"
   readonly property int fade: 14          // blue dissolves into the stripes over this many px
   readonly property int maxFields: 6      // fixed pool: rescans move fields, never rebuild them
   readonly property int topShade: 6       // soft shadow cast above the bar
-  readonly property int joinGap: 28       // icons closer than this share one field
+  readonly property int joinGap: 50       // icons closer than this share one field
+
+  // --- motion ---------------------------------------------------------------
+  readonly property string motionPref: String(Commons.Color.pick("flag.motion", "auto"))
+  readonly property bool covered: !!(Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.hasFullscreen)
+  readonly property string motion: {
+    if (!depth || motionPref === "off") return "off"
+    if (motionPref === "calm" || motionPref === "full") return motionPref
+    return UPower.onBattery ? "calm" : "full"
+  }
+  readonly property bool moving: motion !== "off" && !covered && flag.visible
+  // One slow clock for the cloth: 0..2*pi over 24 seconds, then round again.
+  // A timer, not an animation, so the frame rate is ours to choose: about 30
+  // pictures a second at full, 10 when calm.
+  property real phase: 0
+  property real waveAmt: motion === "full" ? 1.0 : (motion === "calm" ? 0.6 : 0.0)
+  Behavior on waveAmt { NumberAnimation { duration: 900 } }
+  Timer {
+    interval: root.motion === "full" ? 33 : 100
+    running: root.moving
+    repeat: true
+    onTriggered: root.phase = (root.phase + interval / 1000 * (2 * Math.PI / 24)) % (2 * Math.PI)
+  }
 
   readonly property var barWindow: root.QsWindow.window
   property var fields: []
@@ -62,7 +95,15 @@ BarWidget {
       if (last && a - last.b < joinGap) last.b = Math.max(last.b, b)
       else out.push({ a: a, b: b })
     }
-    var next = out.map(function(f) { return { x: Math.round(f.a - fieldPad), w: Math.round(f.b - f.a + fieldPad * 2) } })
+    // A field grows a star cap on each end that has room for one (not at the
+    // screen edges).
+    var full = barWindow.width
+    var next = out.map(function(f) {
+      var sl = root.stars && root.depth && f.a - capPad >= 4
+      var sr = root.stars && root.depth && f.b + capPad <= full - 4
+      var x0 = f.a - (sl ? capPad : fieldPad), x1 = f.b + (sr ? capPad : fieldPad)
+      return { x: Math.round(x0), w: Math.round(x1 - x0), sl: sl, sr: sr }
+    })
     if (JSON.stringify(next) !== JSON.stringify(fields)) fields = next
   }
 
@@ -73,6 +114,48 @@ BarWidget {
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refresh()
+  }
+
+  // A five-point star that twinkles now and then.
+  component Star: Item {
+    id: st
+    property real r: 6.5
+    property int wait: 5000
+    width: r * 2
+    height: r * 2
+    opacity: 0.80
+    readonly property var pts: {
+      var out = [], inner = r * 0.42
+      for (var i = 0; i <= 10; i++) {
+        var a = -Math.PI / 2 + i * Math.PI / 5
+        var rad = i % 2 === 0 ? r : inner
+        out.push(Qt.point(r + rad * Math.cos(a), r + rad * Math.sin(a)))
+      }
+      return out
+    }
+    Shape {
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      ShapePath {
+        fillColor: "white"
+        strokeColor: "transparent"
+        PathPolyline { path: st.pts }
+      }
+    }
+    SequentialAnimation {
+      running: root.moving
+      loops: Animation.Infinite
+      PauseAnimation { duration: st.wait }
+      ParallelAnimation {
+        NumberAnimation { target: st; property: "opacity"; to: 1.0; duration: 380; easing.type: Easing.OutQuad }
+        NumberAnimation { target: st; property: "scale"; to: 1.28; duration: 380; easing.type: Easing.OutQuad }
+      }
+      ParallelAnimation {
+        NumberAnimation { target: st; property: "opacity"; to: 0.80; duration: 800; easing.type: Easing.InOutQuad }
+        NumberAnimation { target: st; property: "scale"; to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
+      }
+      PauseAnimation { duration: 7000 }
+    }
   }
 
   PanelWindow {
@@ -108,30 +191,34 @@ BarWidget {
       width: flag.width
       height: flag.barH
 
-      // Stripes, each with a little material: red darkens toward its foot,
-      // white goes faintly cool with a sheen line on top.
+      // The cloth: stripes that ripple, drawn by a small graphics program
+      // (flag.frag, compiled to flag.frag.qsb next to this file).
+      ShaderEffect {
+        anchors.fill: parent
+        visible: root.depth
+        blending: false
+        property real phase: root.phase
+        property real pxw: width
+        property real pxh: height
+        property real stripes: root.stripes
+        property real wave: root.waveAmt
+        property color red: root.red
+        property color white: root.white
+        fragmentShader: Qt.resolvedUrl("flag.frag.qsb")
+      }
+
+      // The flat flag ([flag] depth = 0): plain stripes, no motion.
       Column {
         anchors.fill: parent
+        visible: !root.depth
         Repeater {
-          model: root.stripes
+          model: root.depth ? 0 : root.stripes
           delegate: Rectangle {
-            id: stripe
             required property int index
-            readonly property bool isRed: index % 2 === 0
-            readonly property color base: isRed ? root.red : root.white
             width: band.width
             height: index === root.stripes - 1 ? band.height - Math.floor(band.height / root.stripes) * (root.stripes - 1)
                                                : Math.floor(band.height / root.stripes)
-            gradient: Gradient {
-              GradientStop { position: 0.0; color: stripe.base }
-              GradientStop { position: 1.0; color: !root.depth ? stripe.base : (stripe.isRed ? Qt.darker(stripe.base, 1.09) : "#F2F3F6") }
-            }
-            Rectangle {
-              visible: root.depth && !stripe.isRed
-              width: parent.width
-              height: 1
-              color: Qt.rgba(1, 1, 1, 0.25)
-            }
+            color: index % 2 === 0 ? root.red : root.white
           }
         }
       }
@@ -172,48 +259,63 @@ BarWidget {
             }
           }
 
-          // The pill: lighter on top, deeper below, a lit top edge, and a
-          // soft shadow so it floats above the stripes.
+          // The pill: glass. Bright on top, deep below, a soft shadow so it
+          // floats above the stripes.
           Rectangle {
             id: pill
             anchors.fill: parent
             radius: root.depth ? height / 2 : 0
             gradient: Gradient {
-              GradientStop { position: 0.0; color: root.depth ? Qt.lighter(root.blue, 1.12) : root.blue }
-              GradientStop { position: 1.0; color: root.depth ? Qt.darker(root.blue, 1.15) : root.blue }
+              GradientStop { position: 0.0; color: root.depth ? Qt.lighter(root.blue, 1.32) : root.blue }
+              GradientStop { position: 0.55; color: root.blue }
+              GradientStop { position: 1.0; color: root.depth ? Qt.darker(root.blue, 1.5) : root.blue }
             }
             layer.enabled: root.depth
             layer.effect: MultiEffect {
               shadowEnabled: true
-              shadowColor: Qt.rgba(0, 0, 0, 0.35)
-              shadowBlur: 0.6
+              shadowColor: Qt.rgba(0, 0, 0, 0.42)
+              shadowBlur: 0.7
               shadowVerticalOffset: 2
               shadowHorizontalOffset: 0
-              blurMax: 12
+              blurMax: 14
               autoPaddingEnabled: true
             }
-            Rectangle {
-              visible: root.depth
-              x: pill.radius * 0.6
-              width: pill.width - pill.radius * 1.2
-              height: 1
-              color: Qt.rgba(1, 1, 1, 0.18)
+          }
+          // The shine on the upper half of the glass.
+          Rectangle {
+            visible: root.depth
+            x: 2
+            y: 1
+            width: parent.width - 4
+            height: parent.height * 0.48
+            radius: height
+            gradient: Gradient {
+              GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.26) }
+              GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.0) }
             }
           }
+          // A thin lit rim.
+          Rectangle {
+            visible: root.depth
+            anchors.fill: parent
+            radius: height / 2
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.20)
+          }
 
-          // A few faint stars in the first field (off unless [flag] stars = "1").
-          Repeater {
-            model: root.stars && field.index === 0 ? [0.14, 0.27, 0.41, 0.55, 0.69, 0.83] : []
-            delegate: Rectangle {
-              required property var modelData
-              required property int index
-              x: field.width * modelData
-              y: index % 2 === 0 ? field.height * 0.28 : field.height * 0.6
-              width: 2
-              height: 2
-              radius: 1
-              color: Qt.rgba(1, 1, 1, 0.12)
-            }
+          // A star in each end cap that has room.
+          Star {
+            visible: !!field.f && field.f.sl === true
+            x: 6
+            y: (field.height - height) / 2
+            wait: 2500 + field.index * 2700
+          }
+          Star {
+            visible: !!field.f && field.f.sr === true
+            x: field.width - width - 6
+            y: (field.height - height) / 2
+            wait: 6500 + field.index * 3100
           }
         }
       }
@@ -224,6 +326,38 @@ BarWidget {
         width: band.width
         height: 1
         color: Qt.rgba(1, 1, 1, 0.10)
+      }
+
+      // The glint: a slanted streak of light that crosses the bar now and
+      // then (full motion only).
+      Item {
+        id: glint
+        anchors.fill: parent
+        clip: true
+        property real gx: -400
+        property int pause: 4000
+        Rectangle {
+          x: glint.gx
+          y: -24
+          width: 110
+          height: band.height + 48
+          rotation: 24
+          gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.00; color: Qt.rgba(1, 1, 1, 0.0) }
+            GradientStop { position: 0.36; color: Qt.rgba(1, 1, 1, 0.13) }
+            GradientStop { position: 0.50; color: Qt.rgba(1, 1, 1, 0.42) }
+            GradientStop { position: 0.64; color: Qt.rgba(1, 1, 1, 0.13) }
+            GradientStop { position: 1.00; color: Qt.rgba(1, 1, 1, 0.0) }
+          }
+        }
+        SequentialAnimation {
+          running: root.moving && root.motion === "full"
+          loops: Animation.Infinite
+          PauseAnimation { duration: glint.pause }
+          NumberAnimation { target: glint; property: "gx"; from: -200; to: band.width + 200; duration: 2600; easing.type: Easing.InOutSine }
+          ScriptAction { script: { glint.gx = -400; glint.pause = 40000 } }
+        }
       }
     }
   }
