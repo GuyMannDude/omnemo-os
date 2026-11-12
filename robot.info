@@ -58,7 +58,8 @@
   },
 
   "configuration": {
-    "file": "~/.config/omarchy/shell.toml — the install appends a marked block with a [flag] table. Edit values there; the commented lines list the choices.",
+    "file": "~/.config/omarchy/shell.toml — the install appends a marked block with a [flag] table. Edit values there; the commented lines list the motion, stars and depth choices. The shell watches this file, so a saved change shows by itself; if it does not, run `omarchy restart shell`.",
+    "example": "[flag]\nblue    = \"#0B6BDD\"\nstripes = 3\nmotion  = \"off\"",
     "flag_keys": [
       {"key": "flag.motion", "default": "auto", "values": "auto | full | calm | off", "changes": "auto = ripple on mains power, still on battery and on a computer that draws without a graphics card (most virtual machines). full = always ripple. calm = slower, gentler. off = a still flag."},
       {"key": "flag.blue", "default": "\"#435ECE\" (set by the install; the plugin's own default is #3C3B6E)", "changes": "Colour of the fields behind each icon group."},
