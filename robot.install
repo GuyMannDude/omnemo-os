@@ -1,0 +1,77 @@
+{
+  // robot.install — Omnemo OS
+  //
+  // READ THIS FIRST, AGENT: this installer changes your human's desktop
+  // (bar, window behaviour, key bindings, menus) and installs Omnemo memory
+  // into their AI helpers' settings. Tell them what will change (the
+  // "changes" list below) and get their yes BEFORE running install,
+  // update or uninstall. Do not run it for them unasked.
+  //
+  // There is NO robot-install.sh. The real installer is `bin/omnemo-os
+  // install` from a clone of this repo. It asks no questions on a fresh
+  // computer (one optional question, "Keep them?", appears only when old
+  // memories are found; with no terminal it keeps them). The README's
+  // Install section is the source of truth; if this file disagrees with
+  // it, follow the README and report it.
+  //
+  // JSON with // line comments (strip them before parsing).
+
+  "product": "Omnemo OS",
+  "version": "0.9.3",
+  "robot_install_sh": null,
+  "guide": "https://github.com/GuyMannDude/omnemo-os#install",
+  "human_yes_required": true,
+  "needs_sudo": "No. Only Omarchy's own snapshot step (recommended first) asks for the password.",
+
+  "version_gate": {
+    "check": "pacman -Q omarchy",
+    "pass": "4.5.0-1 or newer (Omarchy 4.5 stable)",
+    "pre_release": "a 4.5.0 pre-release (e.g. 4.5.0rc2-1) is refused unless you add --allow-rc",
+    "fail": "anything older is refused before any change"
+  },
+
+  "requires": {
+    "where_to_run": "In a terminal INSIDE the person's logged-in Omarchy desktop (it reads the screen size with hyprctl and restarts the bar). Not over SSH, not from a text console.",
+    "commands_present": ["omarchy", "jq", "pacman", "vercmp", "hyprctl", "git"],
+    "network": "Yes. About 200 MB: the Omnemo memory program (about 130 MB, pinned commit) and the colored icons (about 35 MB). Offline, the desktop still installs with one-color icons and no memory; `omnemo-os repair` adds them later.",
+    "not_already_installed": "~/.local/state/omnemo-os/installed.json must not exist (if it does, it is installed: use status, repair or update)."
+  },
+
+  "steps": [
+    {"id": "snapshot", "run": "omarchy snapshot create", "who": "the human (it asks for their password)", "why": "an undo point outside the edition's own backup"},
+    {"id": "clone", "run": "git clone https://github.com/GuyMannDude/omnemo-os && cd omnemo-os", "check": "bin/omnemo-os exists"},
+    {"id": "install", "run": "bin/omnemo-os install", "add_flag": "--allow-rc only on an Omarchy 4.5 pre-release", "check": "exit code 0 and the last lines say it is installed and which AI helpers have the memory. The memory step prints nothing for a while; on a slow line the whole run can take over ten minutes."},
+    {"id": "verify", "run": "omnemo-os status", "check": "everything listed as installed; act on any 'BEFORE your next Omarchy update' line (it asks the human to run one sudo command before their next Omarchy update)"},
+    {"id": "memory", "run": "Start a NEW session of the person's AI helper and ask it to recall something saved with `omnemo save`.", "check": "it recalls it"}
+  ],
+
+  "changes": [
+    "Bar: moved to the bottom, solid, new layout (taskbar left, Tools / ? / Favorites centre, wrench / sound / clock / power right), flag look; stock dock disabled.",
+    "Windows: workspaces float by default; new floating windows open centred and sized to fit above the bar.",
+    "Keys: Super+Alt+Space opens the Apps list; Super+M minimizes to the taskbar.",
+    "Files it edits with a marked block: ~/.config/hypr/hyprland.lua, bindings.lua, looknfeel.lua, ~/.config/omarchy/extensions/omarchy-menu.jsonc, ~/.config/omarchy/shell.toml.",
+    "Files it adds: seven plugins in ~/.config/omarchy/plugins/guy.*, the one-bar guard timer, small helper commands in ~/.local/bin, friendly app names, icon set and wallpaper links.",
+    "Memory: installs Omnemo (if absent) and registers it in the settings files of the AI helpers that are really installed: ~/.claude.json, ~/.codex/config.toml, ~/.config/opencode/opencode.json, ~/.config/crush/crush.json, ~/.gemini/settings.json."
+  ],
+
+  "backup": {
+    "where": "~/.local/state/omnemo-os/backup/<UTC time>/",
+    "record": "~/.local/state/omnemo-os/installed.json, written before any change, so even an install that dies partway can be undone",
+    "what": "shell.json, the workspace-layouts folder, hyprland.lua, bindings.lua, looknfeel.lua, the Omarchy menu file, every other managed file (or a note that it was absent), and the AI helpers' settings files before Omnemo setup touches them"
+  },
+
+  "uninstall": {
+    "run": "omnemo-os uninstall",
+    "restores": "Every managed file byte for byte (content and file mode) from the install-day backup, even after updates; files that did not exist before are removed. Refuses if the backup is missing or its checksum does not match.",
+    "ai_helper_settings": "Restored only if still exactly as Omnemo setup left them (or differing only by an empty mcp key); a file the person has used since is theirs and stays.",
+    "memories": "Asks \"Keep your memories? [Y/n]\". Enter keeps them. Deleting needs the typed word DELETE and saves ~/omnemo-memories-<date>.tar.gz first. An agent must never type DELETE without the human's explicit say-so.",
+    "omnemo_installed_before": "An Omnemo that was there before Omnemo OS is never removed or asked about.",
+    "limit": "On a computer first installed with 0.9.2 or earlier, what that older version did to the AI helpers' settings and the helper programs it downloaded (about 840 MB) stays."
+  },
+
+  "update": {
+    "run": "omnemo-os update",
+    "behaviour": "Fetches the newest release tag and applies it. No questions; never goes backwards; memories and the person's own layout/colour changes are kept; an edited plugin is saved to ~/.local/state/omnemo-os/replaced/ before being replaced. The install-day backup stays the uninstall baseline.",
+    "from_0_9_2_or_older": "git clone https://github.com/GuyMannDude/omnemo-os && cd omnemo-os && bin/omnemo-os update"
+  }
+}

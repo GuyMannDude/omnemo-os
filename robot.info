@@ -1,0 +1,175 @@
+{
+  // robot.info — Omnemo OS
+  //
+  // Structured product manifest for AI agents. Paired with robot.install
+  // (install recipe and safety rules) and llms.txt (docs index).
+  // Spec: https://github.com/GuyMannDude/mnemo-cortex/blob/master/ROBOT-INFO-SPEC.md
+  //
+  // Single JSON object, UTF-8. JavaScript-style // line comments are
+  // stripped before parsing. Facts are taken from bin/omnemo-os,
+  // MANIFEST.md and the plugins at release v0.9.3.
+  //
+  // THIS INSTALLER CHANGES SOMEONE'S DESKTOP. An agent must get its
+  // human's yes before running `omnemo-os install`, `update` or `uninstall`.
+
+  "robot_info_version": "0.2",
+
+  "name": "Omnemo OS",
+  "tagline": "Omarchy, made easy, made for memory: a friendlier desktop layer for Omarchy with Omnemo shared AI memory built in.",
+  "summary": "Omnemo OS is an edition of the Omarchy Linux desktop, installed as a layer on top of a stock Omarchy 4.5 computer, not a fork. One command adds a bar along the bottom with a taskbar, plain-words menus (Tools, Favorites, a wrench for settings), a \"?\" guide to every icon and a flag-style bar look; switches workspaces to floating windows; and installs Omnemo so the AI helpers already on the computer share one memory. It backs up everything it touches first, and `omnemo-os uninstall` puts the computer back byte for byte, keeping the memories unless the person types DELETE.",
+  "version": "0.9.3",
+  "status": "Public Preview. 1.0 waits for one test: a full Omarchy version update on a stock computer with the edition on.",
+  "license": "MIT",
+  "homepage": "https://projectsparks.ai/omnemo-os",
+  "source": "https://github.com/GuyMannDude/omnemo-os",
+  "contact": "https://github.com/GuyMannDude/omnemo-os/issues",
+  "maintainer": "Project Sparks",
+  "not_affiliated": "Built on Omarchy (MIT). Not affiliated with or endorsed by Omarchy's owners.",
+
+  "capabilities": [
+    "A layer, not a fork: everything is user-level (no sudo), written only under the person's home folder.",
+    "Version gate: installs only on Omarchy 4.5 stable or newer (package omarchy >= 4.5.0-1); a 4.5.0 pre-release only with --allow-rc; anything older is refused before any change.",
+    "Refuses before changing anything if a file it would create is already there and not its own, or if it is already installed.",
+    "Backs up first: shell.json, the workspace-layouts folder, hyprland.lua, bindings.lua, looknfeel.lua, the Omarchy menu file and every other managed file go to ~/.local/state/omnemo-os/backup/<UTC time>/, and the install record ~/.local/state/omnemo-os/installed.json is written BEFORE any change, so even an install that dies partway can be undone.",
+    "Seven bar plugins: guy.taskbar (AI, Browsers, Web apps, Files, Apps, Settings, one icon per open window), guy.tools (Tools menu), guy.help (\"?\" guide with live memory numbers), guy.favorites, guy.utils (wrench: Wi-Fi, Bluetooth, Display, Sound, Weather, clocks, calendar, all settings), guy.clock, guy.flag (the flag-style bar).",
+    "Desktop settings it changes: bar at the bottom, solid background under the flag layer, its own bar layout, stock dock off, floating workspaces by default, new floating windows centred and sized to fit above the bar, an Apps entry in the Omarchy menu, Super+Alt+Space opens the Apps list, Super+M minimizes to the taskbar on every kind of workspace, no pointer jump on a taskbar switch.",
+    "Everyday extras: a one-bar guard (systemd user timer, every 30 s, keeps exactly one bar running), friendly names (foot → Terminal, Calculator, Writer), text files open in Writer, stand-ins for two missing icon sets, a Hwy 180 wallpaper choice (never set as the current wallpaper).",
+    "Colored bar icons: downloads the Papirus icon set (GPL-3.0, release 20260801, checksum checked) into its own folder; offline, the bar uses one-color glyphs and `omnemo-os repair` fetches them later.",
+    "Memory: if Omnemo is not installed, installs it the Omnemo INSTALL.md way at a pinned, reviewed commit (venv, pip from GitHub, link, `omnemo setup`), registering it only with AI helpers that are really installed (it never downloads Claude Code, Codex or others). If Omnemo is already installed it is left exactly as it is.",
+    "Uninstall restores every managed file byte for byte (content and file mode) from the install-day backup, even after any number of updates; it removes the Omnemo it installed (never one that was there before) and asks before touching the memories.",
+    "Status, repair and update: `status` shows what is installed and flags what an Omarchy update reset; `repair` puts it back and connects newly installed AI helpers; `update` moves to the newest release tag without questions."
+  ],
+
+  "exposes": {
+    "cli": [
+      {"command": "bin/omnemo-os install [--allow-rc]", "purpose": "Install the edition (run from the cloned folder). --allow-rc accepts an Omarchy 4.5.0 pre-release."},
+      {"command": "omnemo-os status", "purpose": "What is installed (memory and icons included), which AI helpers have the memory, and anything an Omarchy update reset. Prints the 'BEFORE your next Omarchy update' line when it applies."},
+      {"command": "omnemo-os repair", "purpose": "Put back what an Omarchy update reset (friendly names, the guard, the command link, icons, a failed memory install) and connect AI helpers installed since. Safe to run any time."},
+      {"command": "omnemo-os update [--allow-rc]", "purpose": "From the installed command: fetch the newest release tag and hand over to it. From a downloaded copy (`./bin/omnemo-os update`): apply that copy. Asks nothing; never goes backwards; keeps memories and the person's own changes."},
+      {"command": "omnemo-os uninstall", "purpose": "Restore the computer to how it was before the first install. Asks \"Keep your memories? [Y/n]\" when it removes an Omnemo it installed."},
+      {"command": "omnemo-icons-update [--pin TAG SHA]", "purpose": "Fetch the newest colored icon set (or a pinned release with its checksum)."},
+      {"command": "omarchy snapshot create", "purpose": "Omarchy's own snapshot (asks for the password). The README's step 1 before installing."}
+    ],
+    "keyboard": [
+      {"keys": "Super + L", "purpose": "Change how windows sit on the current workspace. The bar's ? guide says it steps through floating, side by side and a sliding row."},
+      {"keys": "Super + M", "purpose": "Minimize the window to the taskbar (any workspace layout)."},
+      {"keys": "Super + Alt + Space", "purpose": "Open the Apps list."}
+    ]
+  },
+
+  "configuration": {
+    "file": "~/.config/omarchy/shell.toml — the install appends a marked block with a [flag] table. Edit values there; the commented lines list the choices.",
+    "flag_keys": [
+      {"key": "flag.motion", "default": "auto", "values": "auto | full | calm | off", "changes": "auto = ripple on mains power, still on battery and on a computer that draws without a graphics card (most virtual machines). full = always ripple. calm = slower, gentler. off = a still flag."},
+      {"key": "flag.blue", "default": "\"#435ECE\" (set by the install; the plugin's own default is #3C3B6E)", "changes": "Colour of the fields behind each icon group."},
+      {"key": "flag.red", "default": "#C21F35", "changes": "Stripe colour."},
+      {"key": "flag.white", "default": "#FFFFFF", "changes": "Stripe colour."},
+      {"key": "flag.stripes", "default": 5, "values": "3 to 7", "changes": "Number of stripes."},
+      {"key": "flag.stars", "default": "on", "values": "0 turns them off", "changes": "A star at the end of each blue field that has room."},
+      {"key": "flag.depth", "default": "on", "values": "0 turns it off", "changes": "0 = the flat 0.9.2 flag: no shine, no motion."}
+    ],
+    "environment": [
+      {"name": "XDG_CONFIG_HOME", "default": "~/.config", "changes": "Where the Omarchy, Hyprland and systemd user files it manages are found."},
+      {"name": "XDG_STATE_HOME", "default": "~/.local/state", "changes": "Where the install record and backups go (<XDG_STATE_HOME>/omnemo-os/)."},
+      {"name": "XDG_DATA_HOME", "default": "~/.local/share", "changes": "Where the installed copy, icons, Omnemo venv and memory store live."},
+      {"name": "MISE_DATA_DIR", "default": "<XDG_DATA_HOME>/mise", "changes": "Where it looks for really-installed AI helpers."},
+      {"name": "OMNEMO_OS_URL", "default": "https://github.com/GuyMannDude/omnemo-os", "changes": "Where `omnemo-os update` looks for release tags."}
+    ],
+    "layout": "The bar layout it writes is layout.json in the repo (bar.layout in ~/.config/omarchy/shell.json). A layout you change after install is yours: update leaves it alone and says so.",
+    "colors_menus": "Every menu, label and icon choice lives in the QML files under plugins/. They are replaced by `omnemo-os update`; a plugin you edited is saved to ~/.local/state/omnemo-os/replaced/<time>/plugins/ first."
+  },
+
+  "install": {
+    "guide": "https://github.com/GuyMannDude/omnemo-os#install",
+    "robot_install": "./robot.install",
+    "robot_install_sh": null,
+    "platforms": ["omarchy>=4.5 (Arch Linux, Hyprland)"],
+    "runtime": "bash, git, jq, pacman + vercmp, hyprctl, the omarchy commands (all on stock Omarchy). Python 3 for the Omnemo memory step.",
+    "commands": ["omarchy snapshot create", "git clone https://github.com/GuyMannDude/omnemo-os", "cd omnemo-os", "bin/omnemo-os install"],
+    "download": "About 200 MB in all: the memory program about 130 MB (including a 65 MB language model) and the icons about 35 MB. About 320 MB on disk afterwards. Under a minute on a fast line; over ten minutes on a slow line or small computer (the memory step prints nothing while it works).",
+    "sudo": "Never, except Omarchy's own snapshot step."
+  },
+
+  "compatibility": {
+    "omarchy": "4.5 stable (package 4.5.0-1 or newer). 4.5.0 pre-releases with --allow-rc. Older versions are refused.",
+    "ai_helpers": "Memory is connected to Claude Code, Codex, OpenCode, Crush and Gemini CLI when they are really installed (not just Omarchy's download stand-ins). Pi gets Omnemo's skill only. A helper installed later gets the memory from `omnemo-os repair`.",
+    "graphics": "Works without a graphics card; the flag then holds still by default to save processor time."
+  },
+
+  "privacy": {
+    "telemetry": "none",
+    "data_location": "Everything stays on the computer: edition files under ~/.config, ~/.local/share/omnemo-os and ~/.local/state/omnemo-os; memories in ~/.local/share/omnemo.",
+    "auth": "No accounts, no network services. The AI helpers need their own accounts with their makers.",
+    "outbound_calls": [
+      "GitHub, at install/update: the Omnemo package (pinned commit) and the Papirus icon release.",
+      "The embedding model download, once, by Omnemo on first use.",
+      "GitHub tag lookup when `omnemo-os update` is run from the installed command."
+    ]
+  },
+
+  "related": [
+    {"name": "Omnemo", "url": "https://github.com/GuyMannDude/omnemo", "purpose": "The memory on its own, for people happy with stock Omarchy."},
+    {"name": "Omarchy", "url": "https://github.com/omacom/omarchy", "purpose": "The desktop this edition is a layer on. Install it first, from its own installer."},
+    {"name": "llms.txt", "url": "./llms.txt", "purpose": "LLM-friendly docs index"},
+    {"name": "robot.install", "url": "./robot.install", "purpose": "Install recipe and safety rules for an agent"},
+    {"name": "robot.info spec", "url": "https://github.com/GuyMannDude/mnemo-cortex/blob/master/ROBOT-INFO-SPEC.md", "purpose": "Schema for this file"}
+  ],
+
+  "common_questions": [
+    {"q": "What is Omnemo OS?", "a": "A friendlier desktop layer for Omarchy: a bottom bar with a taskbar, plain-words menus and a ? guide, floating windows, and Omnemo memory so your AI helpers remember you. It installs on top of stock Omarchy 4.5 and uninstalls cleanly."},
+    {"q": "Do I install it instead of Omarchy?", "a": "No. Install Omarchy from its own installer first, then add Omnemo OS with three lines in a terminal."},
+    {"q": "Which Omarchy version do I need?", "a": "4.5 stable or newer (`pacman -Q omarchy` shows 4.5.0-1 or later). On a 4.5 test version add --allow-rc. Older versions are refused before anything changes."},
+    {"q": "Is it safe? Can I undo it?", "a": "It never uses sudo, refuses if anything it would create is already there, backs up every file it touches before changing it, and `omnemo-os uninstall` puts them all back byte for byte. The README also has you take an Omarchy snapshot first."},
+    {"q": "Will it delete my memories?", "a": "No. Uninstall asks \"Keep your memories?\" and Enter keeps them; deleting needs the typed word DELETE and saves a copy to ~/omnemo-memories-<date>.tar.gz first. An Omnemo that was installed before Omnemo OS is never touched."},
+    {"q": "Why do my windows float now?", "a": "The edition switches workspaces to floating windows you drag with the mouse. Super + L changes the current workspace's layout; keep pressing until the note says the layout you want."},
+    {"q": "An Omarchy update reset something. What now?", "a": "Run `omnemo-os status` to see what, then `omnemo-os repair`. If the bar is one plain colour with no flag, run `omarchy restart shell`."},
+    {"q": "How do I update it?", "a": "`omnemo-os update`. It asks nothing, keeps your memories and settings, and never goes backwards. From 0.9.2 or earlier (no update command): clone the repo again and run `bin/omnemo-os update` from the new copy."},
+    {"q": "Does it install Claude or Codex for me?", "a": "No. It connects the memory to AI helpers already installed and downloads none. Install a helper later, then run `omnemo-os repair`."},
+    {"q": "How do I stop the flag moving?", "a": "In ~/.config/omarchy/shell.toml find `# motion         = \"off\"` and delete the #. It already holds still on battery and on computers without a graphics card."},
+    {"q": "Anything to check before my next Omarchy update?", "a": "Run `omnemo-os status` once. If it prints a line starting \"BEFORE your next Omarchy update\", run the command it shows (`sudo pacman -D --asexplicit omarchy`) first. That guards against a stock Omarchy 4.5.0 update issue (omarchy#18154)."},
+    {"q": "Can I put my desktop back after an update from 0.9.2?", "a": "Mostly. Uninstall restores everything the edition manages, but what 0.9.2 itself changed at install (the AI helpers' settings files, and Claude Code and Codex downloads of about 840 MB) stays, because safety copies start with 0.9.3."}
+  ],
+
+  "why": "Omarchy is fast and beautiful but built for keyboard people. Omnemo OS keeps Omarchy underneath and adds what most people expect: a taskbar, buttons with words on them, a guide to every icon, and windows you can drag. It also gives the AI helpers on your computer one shared memory, so they remember you. One command takes it all back off.",
+
+  "install_steps": [
+    {"step": 1, "instruction": "Make sure your computer runs Omarchy 4.5 or newer."},
+    {"step": 2, "instruction": "Open a Terminal (Super + Enter) and type `omarchy snapshot create`. It asks for your password. This is your undo point."},
+    {"step": 3, "instruction": "Paste these three lines: `git clone https://github.com/GuyMannDude/omnemo-os`, then `cd omnemo-os`, then `bin/omnemo-os install`. It says what it will download before it changes anything."},
+    {"step": 4, "instruction": "Wait until it prints that it is installed. The memory step can sit quiet for several minutes on a slow line."},
+    {"step": 5, "instruction": "Start a NEW session of your AI helper. It now shares one memory with the others."}
+  ],
+
+  "works_with": [
+    {"name": "Omarchy 4.5", "how": "Installed on top as a user-level layer; `omnemo-os uninstall` returns to stock."},
+    {"name": "Claude Code, Codex, OpenCode, Crush, Gemini CLI", "how": "Get Omnemo memory if they are installed when you install, or after `omnemo-os repair`."},
+    {"name": "An existing Omnemo install", "how": "Left exactly as it is; the edition uses it."}
+  ],
+
+  "extensibility": "Bar colours, stripes, stars and motion are in the [flag] block of ~/.config/omarchy/shell.toml. The bar layout is Omarchy's own (bar.layout in ~/.config/omarchy/shell.json), so you can move widgets with Omarchy's bar commands; update keeps a layout you changed. Menus and labels are QML in the plugin folders under ~/.config/omarchy/plugins/guy.*; update replaces them but first saves an edited plugin to ~/.local/state/omnemo-os/replaced/. Memory tuning is Omnemo's: ~/.config/omnemo/config.toml. The code is MIT: fork it and change anything.",
+
+  "tips": [
+    "Delete the downloaded omnemo-os folder after installing if you like: install copies itself to ~/.local/share/omnemo-os/app.",
+    "Tools → Theme & wallpaper now includes the Hwy 180 wallpaper; your current wallpaper is never changed.",
+    "Click ? on the bar to see how many memories your AI helpers have saved.",
+    "In a virtual machine, turn on Stay Awake before a long install: Omarchy's idle lock can stop the final bar restart.",
+    "If the bar is one plain colour with no flag, `omarchy restart shell` fixes it.",
+    "Tools, the wrench, Favorites and ? can be opened from a terminal: `omarchy-shell shell summon <id> {}`."
+  ],
+
+  "changelog": [
+    {"version": "0.9.3", "date": "2026-11-11", "changes": ["`omnemo-os update`.", "The flag ripples like cloth, holds still on battery and without a graphics card.", "Safety copies of the AI helpers' settings files, restored at uninstall.", "Never downloads AI helpers; memory goes only to helpers really installed.", "Super + M minimizes to the taskbar on every workspace layout."]},
+    {"version": "0.9.2", "date": "2026-11-07", "changes": ["Colored Papirus icons, Hwy 180 wallpaper choice, Keep-or-fresh memory questions."]},
+    {"version": "0.9.1", "date": "2026-10-31", "changes": ["Installs Omnemo memory with the desktop."]},
+    {"version": "0.9.0", "date": "2026-10-31", "changes": ["First public preview."]}
+  ],
+
+  "support": {
+    "github_issues": "https://github.com/GuyMannDude/omnemo-os/issues",
+    "ideas": "https://github.com/GuyMannDude/omnemo-os/discussions",
+    "homepage": "https://projectsparks.ai/omnemo-os"
+  },
+
+  "generated_at": "2026-11-11T22:00:00-08:00",
+  "spec_url": "https://github.com/GuyMannDude/mnemo-cortex/blob/master/ROBOT-INFO-SPEC.md"
+}

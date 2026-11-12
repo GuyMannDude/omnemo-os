@@ -1,0 +1,34 @@
+# Omnemo OS
+
+> Omarchy, made easy, made for memory. An edition of the Omarchy Linux desktop installed as a user-level layer on a stock Omarchy 4.5 computer: a bottom bar with a taskbar, plain-words menus, a "?" guide to every icon and a flag look; floating windows; and Omnemo shared memory for the AI helpers already installed. Everything it touches is backed up first, and `omnemo-os uninstall` restores it byte for byte. v0.9.3 Public Preview, MIT.
+
+This installer changes a person's desktop. An agent must explain what changes and get its human's yes before running `bin/omnemo-os install`, `omnemo-os update` or `omnemo-os uninstall`. It needs Omarchy 4.5 stable or newer (`pacman -Q omarchy` 4.5.0-1+; a 4.5.0 pre-release only with `--allow-rc`), runs without sudo, and must run in a terminal inside the logged-in desktop. Memories in `~/.local/share/omnemo` survive uninstall unless the person types DELETE.
+
+## Docs
+
+- [README](https://github.com/GuyMannDude/omnemo-os/blob/main/README.md): What it is, the three-line install, status / repair / update / uninstall, the floating-windows change, the pre-update check, memories.
+- [MANIFEST.md](https://github.com/GuyMannDude/omnemo-os/blob/main/MANIFEST.md): Every plugin, setting and file the edition touches, and how each is undone. The flag's settings (motion, colours, stripes) are in §1.
+- [SECURITY-REVIEW.md](https://github.com/GuyMannDude/omnemo-os/blob/main/SECURITY-REVIEW.md): What the edition runs, reads, writes and downloads.
+- [INSTALLER-NOTES.md](https://github.com/GuyMannDude/omnemo-os/blob/main/INSTALLER-NOTES.md): Installer-side facts, cold-run results, the release test gate.
+
+## Agent Manifests
+
+- [robot.info](https://github.com/GuyMannDude/omnemo-os/blob/main/robot.info): Structured product manifest (JSON with // comments). Commands, key bindings, the flag settings in shell.toml with defaults, environment variables, what install changes, privacy, 12 common questions.
+- [robot.install](https://github.com/GuyMannDude/omnemo-os/blob/main/robot.install): The safety rules and the real steps as data: version gate, where it must run, what it changes, where the backup goes, what uninstall restores and what it asks. There is no robot-install.sh: the installer is `bin/omnemo-os install`.
+
+## Code
+
+- [bin/omnemo-os](https://github.com/GuyMannDude/omnemo-os/blob/main/bin/omnemo-os): The whole edition layer: install, update, uninstall, status, repair.
+- [layout.json](https://github.com/GuyMannDude/omnemo-os/blob/main/layout.json): The bar layout it writes.
+- [plugins/](https://github.com/GuyMannDude/omnemo-os/tree/main/plugins): The seven bar plugins (QML).
+- [system/](https://github.com/GuyMannDude/omnemo-os/tree/main/system): The one-bar guard, the minimize helper, the icon updater, the bar look files.
+
+## Related
+
+- [Omnemo](https://github.com/GuyMannDude/omnemo): The memory on its own, for people happy with stock Omarchy.
+- [Omarchy](https://github.com/omacom/omarchy): The desktop underneath. Install it first from its own installer. Omnemo OS is not affiliated with Omarchy's owners.
+
+## Optional
+
+- [CONTRIBUTING.md](https://github.com/GuyMannDude/omnemo-os/blob/main/CONTRIBUTING.md): How to report problems and ideas.
+- [Product page](https://projectsparks.ai/omnemo-os)
