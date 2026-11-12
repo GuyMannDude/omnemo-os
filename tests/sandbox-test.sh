@@ -175,7 +175,7 @@ new_home A
 snapshot A >"$SB/A.before"
 as A "$REPO/bin/omnemo-os" install >"$SB/A.install.out" 2>&1; rcA=$?
 check "install exits 0" test "$rcA" = 0
-check "says what it downloads before starting" grep -q "this will download the memory program (about 330 MB once installed) and the colored icons (33 MB)" "$SB/A.install.out"
+check "says what it downloads before starting" grep -q "this will download a bit under 200 MB: the memory program (about 130 MB) and the colored icons (about 35 MB), plus what they need" "$SB/A.install.out"
 check "says which helpers it will NOT download" grep -q "(claude codex gemini) are NOT downloaded" "$SB/A.install.out"
 nope  "no AI helper was downloaded by install (#5)" test -s "$SB/downloads.log"
 check "memory registered with opencode (really installed)" jq -e '.mcp.omnemo' "$SB/home-A/.config/opencode/opencode.json"
@@ -262,6 +262,18 @@ if [[ -n $OLD && -x "$OLD/bin/omnemo-os" ]]; then
   check "untouched bar colours are replaced by this version's" bash -c "diff <(sed -n '/^# omnemo-os:begin/,/^# omnemo-os:end/p' '$SB/home-D/.config/omarchy/shell.toml') '$REPO/system/omnemo-look-flag.toml'"
   check "  ...still one colour block" test "$(grep -c 'omnemo-os:begin' "$SB/home-D/.config/omarchy/shell.toml")" = 1
   check "the flag's shader files are installed" test -s "$SB/home-D/.config/omarchy/plugins/guy.flag/flag.frag.qsb" -a -s "$SB/home-D/.config/omarchy/plugins/guy.flag/flag.frag"
+  # The flag holds still on a computer that draws without a graphics card.
+  DB="$SB/home-D/.config/omarchy/plugins/guy.flag/drawn-by.sh"
+  mkdir -p "$SB/draw/soft/hypr/x" "$SB/draw/card/hypr/x" "$SB/draw/none/hypr" "$SB/draw/dri-card" "$SB/draw/dri-none"; : >"$SB/draw/dri-card/renderD128"
+  echo 'DEBUG from aquamarine ]: Renderer: llvmpipe (LLVM 21.1.0, 256 bits)' >"$SB/draw/soft/hypr/x/hyprland.log"
+  echo 'DEBUG from aquamarine ]: Renderer: Mesa Intel(R) HD Graphics 520 (SKL GT2)' >"$SB/draw/card/hypr/x/hyprland.log"
+  drawn() { env -u LIBGL_ALWAYS_SOFTWARE XDG_RUNTIME_DIR="$SB/draw/$1" HYPRLAND_INSTANCE_SIGNATURE=x OMNEMO_DRI_DIR="$SB/draw/${2:-dri-card}" sh "$DB"; }
+  check "the flag's graphics check is installed" test -s "$DB"
+  check "  ...a software-drawn desktop is told apart" test "$(drawn soft)" = software
+  check "  ...a graphics card is told apart" test "$(drawn card)" = gpu
+  check "  ...no log and no render device counts as software" test "$(drawn none dri-none)" = software
+  check "  ...no log but a render device counts as a graphics card" test "$(drawn none dri-card)" = gpu
+  check "  ...LIBGL_ALWAYS_SOFTWARE is respected" test "$(LIBGL_ALWAYS_SOFTWARE=1 XDG_RUNTIME_DIR="$SB/draw/card" HYPRLAND_INSTANCE_SIGNATURE=x sh "$DB")" = software
   nope  "an untouched home is told nothing was 'changed'" grep -q "you had changed\|you have changed" "$SB/D.update.out"
   cp "$SB/home-C/.config/hypr/bindings.lua" "$SB/C.bindings.1"
   as C "$REPO/bin/omnemo-os" update >"$SB/C.update2.out" 2>&1 </dev/null

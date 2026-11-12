@@ -34,7 +34,7 @@ bin/omnemo-os install
 
 Omarchy 4.5 stable shipped on 2026-11-05; on an older 4.5 test version add `--allow-rc`.
 
-**What it downloads, and how long it takes.** The memory program (about 330 MB once installed) and the colored bar icons (33 MB). Before it changes anything, the installer says so. Allow a few minutes, more on a small computer or a slow line; the memory step is the long one and prints nothing while it works. If you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later.
+**What it downloads, and how long it takes.** A bit under 200 MB in all: the memory program (about 130 MB) and the colored bar icons (about 35 MB), plus what they need. Once installed they take about 320 MB of disk. Before it changes anything, the installer says so. On a fast line the whole install took under a minute in our test; on a slow line or a small computer it has taken over ten. The memory step is the long one and prints nothing while it works. If you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later.
 
 **Your AI helpers.** The memory is for AI helpers such as Claude or Codex, which need their own account with their maker. Install connects the memory to the helpers that are already on your computer and downloads none. A helper you start for the first time later (Omarchy downloads it then) gets the memory when you run `omnemo-os repair`. After installing, start a **new** session of your helper and it shares one memory with the others.
 
@@ -47,9 +47,9 @@ Afterwards, in any new Terminal:
 
 You can delete the downloaded `omnemo-os` folder once it's installed. Want a new background? Tools → Theme & wallpaper now includes our own Hwy 180 at golden hour; your current wallpaper is never changed.
 
-The flag on the bar moves: the stripes ripple like cloth, and it holds still by itself on battery. For a still flag, open `~/.config/omarchy/shell.toml`, find the line `# motion         = "off"` and delete the `#` at its start. If the bar is ever one plain colour with no flag, run `omarchy restart shell`.
+The flag on the bar moves: the stripes ripple like cloth, and it holds still by itself on battery, and on a computer with no graphics card (most virtual machines), where a moving flag would keep the processor busy. For a still flag, open `~/.config/omarchy/shell.toml`, find the line `# motion         = "off"` and delete the `#` at its start. If the bar is ever one plain colour with no flag, run `omarchy restart shell`.
 
-Installed 0.9.2 or earlier? Those have no update command. Get the new copy and let it update yours: `git clone https://github.com/GuyMannDude/omnemo-os`, then `cd omnemo-os`, then `bin/omnemo-os update`.
+Installed 0.9.2 or earlier? Those have no update command. Get the new copy and let it update yours: `git clone https://github.com/GuyMannDude/omnemo-os`, then `cd omnemo-os`, then `bin/omnemo-os update`. One thing an update cannot mend: what 0.9.2 itself did at install (it changed the AI helpers' settings files and downloaded Claude Code and Codex, about 840 MB) stays after a later uninstall, because the safety copies are only taken from 0.9.3 on.
 
 ### Before your next Omarchy update
 

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Services.UPower
@@ -19,8 +20,9 @@ import qs.Ui
 // straight through to the bar.
 //
 // Motion: [flag] motion = "auto" (default) | "full" | "calm" | "off" in
-// shell.toml. auto = full on mains power, still on battery. It stops while a
-// fullscreen window covers the bar.
+// shell.toml. auto = full on mains power; still on battery, and still on a
+// computer that draws without a graphics card (see drawn-by.sh, next to this
+// file, for how that is told). It stops while a fullscreen window covers the bar.
 BarWidget {
   id: root
   moduleName: "guy.flag"
@@ -49,8 +51,21 @@ BarWidget {
   readonly property string motion: {
     if (!depth || motionPref === "off") return "off"
     if (motionPref === "calm" || motionPref === "full") return motionPref
-    return UPower.onBattery ? "off" : "full"
+    return (UPower.onBattery || drawnBy !== "gpu") ? "off" : "full"
   }
+  // "gpu" or "software", asked once at start; "" until the answer is in, and
+  // the flag waits still for it. No answer at all counts as "gpu".
+  property string drawnBy: ""
+  Process {
+    id: drawnByRead
+    command: ["sh", Qt.resolvedUrl("drawn-by.sh").toString().replace(/^file:\/\//, "")]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.drawnBy = (String(text).trim() === "software") ? "software" : "gpu"
+    }
+    onExited: function(code) { if (root.drawnBy === "") root.drawnBy = "gpu" }
+  }
+  Component.onCompleted: drawnByRead.running = true
   readonly property bool moving: motion !== "off" && !covered && flag.visible
   // One slow clock for the cloth: 0..2*pi over 24 seconds, then round again.
   // A timer, not an animation, so the frame rate is ours to choose: about 30

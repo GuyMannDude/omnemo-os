@@ -327,7 +327,7 @@ OUR_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/omnemo-os"
 ICON_STORE="$OUR_DATA/icons"
 
 icons_install() {   # prints "installed" or "failed"; never dies
-  say "icons: downloading the colored icons (about 33 MB)" >&2
+  say "icons: downloading the colored icons (about 35 MB)" >&2
   if "$ICON_UPDATER" --pin "$ICONS_TAG" "$ICONS_SHA256" >&2; then echo installed
   else say "icons: not downloaded (no internet?); the bar uses its one-color icons. Run 'omnemo-os repair' later." >&2; echo failed; fi
 }
@@ -405,7 +405,7 @@ omnemo_bin() { if [[ -x $OMNEMO_VENV/bin/omnemo ]]; then printf '%s\n' "$OMNEMO_
 omnemo_install() {
   {
     command -v python3 >/dev/null && command -v git >/dev/null || { say "memory: python3 and git are needed to install it" >&2; echo failed; return; }
-    say "memory: installing Omnemo (about 330 MB once installed; this can take several minutes)" >&2
+    say "memory: installing Omnemo (about 130 MB to download; under a minute on a fast line)" >&2
     python3 -m venv "$OMNEMO_VENV" >&2 &&
     "$OMNEMO_VENV/bin/pip" install --quiet --disable-pip-version-check "$OMNEMO_URL@$OMNEMO_REF" >&2 &&
     mkdir -p "$(dirname "$OMNEMO_LINK")" && ln -sfn "$OMNEMO_VENV/bin/omnemo" "$OMNEMO_LINK" &&
@@ -494,11 +494,11 @@ helpers_report() {
 # program / the icons will be downloaded.
 download_notice() {
   local later
-  if [[ $1 == 1 && $2 == 1 ]]; then say "this will download the memory program (about 330 MB once installed) and the colored icons (33 MB)"
-  elif [[ $1 == 1 ]]; then say "this will download the memory program (about 330 MB once installed)"
-  elif [[ $2 == 1 ]]; then say "this will download the colored icons (33 MB)"
+  if [[ $1 == 1 && $2 == 1 ]]; then say "this will download a bit under 200 MB: the memory program (about 130 MB) and the colored icons (about 35 MB), plus what they need"
+  elif [[ $1 == 1 ]]; then say "this will download the memory program (about 130 MB)"
+  elif [[ $2 == 1 ]]; then say "this will download the colored icons (about 35 MB)"
   else say "nothing to download: the memory program and the colored icons are already here"; fi
-  [[ $1 != 1 ]] || say "the memory step can take several minutes on a small computer or a slow line; it has not hung"
+  [[ $1 != 1 ]] || say "under a minute on a fast line; the memory step can take several minutes on a small computer or a slow line, and it has not hung"
   later="$(helpers_in_state later)"
   [[ $1 != 1 || -z $later ]] || say "AI helpers that are not on this computer yet ($later) are NOT downloaded"
   return 0
