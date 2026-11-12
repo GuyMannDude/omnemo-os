@@ -2,11 +2,11 @@
 
 Omarchy, made easy, made for memory.
 
-<!-- PICTURE SLOT. One screenshot of the desktop with the flag bar goes here,
-     then a ten-second clip (click a taskbar icon, open Tools, open the "?").
-     Both come from a stock install, not from anyone's own machine.
-     ![The Omnemo OS desktop: the flag bar along the bottom](docs/desktop.png)
--->
+![The Omnemo OS desktop: the flag bar along the bottom](docs/desktop.png)
+
+![Ten seconds on the bar: Files opens from the taskbar, then the Tools menu, then the "?" guide](docs/tour.gif)
+
+*Both from a fresh Omarchy 4.5 install with nothing else changed. The wallpaper is the Hwy 180 one the edition adds.*
 
 Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the same Omarchy underneath, a desktop that works the way people expect (a taskbar, plain-words buttons, a "?" guide to every icon, and the flag bar), made to run with [Omnemo](https://github.com/GuyMannDude/omnemo) memory, so the AI helpers on your computer remember you. It doesn't replace Omarchy: three lines you paste install it, and one command puts your computer back exactly as it was.
 
