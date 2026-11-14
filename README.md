@@ -50,7 +50,7 @@ bin/omnemo-os install
 
 Omarchy 4.5 stable shipped on 2026-11-05; on an older 4.5 test version add `--allow-rc`.
 
-**What it downloads, and how long it takes.** A bit under 200 MB in all: the memory program (about 130 MB) and the colored bar icons (about 35 MB), plus what they need. Once installed they take about 320 MB of disk. Before it changes anything, the installer says so. On a fast line the whole install took under a minute in our test; on a slow line or a small computer it has taken over ten. The memory step is the long one and prints nothing while it works. If you are offline, the desktop still installs (with one-color icons) and `omnemo-os repair` adds the rest later.
+**What it downloads, and how long it takes.** A bit under 200 MB in all: the memory program (about 130 MB) and the colored bar icons (about 35 MB), plus what they need. Once installed they take about 320 MB of disk. Before it changes anything, the installer says so. On a fast line the whole install took under a minute in our test; on a slow line or a small computer it has taken over ten. The memory step is the long one and prints nothing while it works. If you are offline, the desktop still installs (with one-color icons and no memory yet) and `omnemo-os repair` adds the rest later.
 
 **Your AI helpers.** The memory is for AI helpers such as Claude or Codex, which need their own account with their maker. Install connects the memory to the helpers that are already on your computer and downloads none. A helper you start for the first time later (Omarchy downloads it then) gets the memory when you run `omnemo-os repair`. After installing, start a **new** session of your helper and it shares one memory with the others.
 
@@ -58,7 +58,7 @@ Afterwards, in any new Terminal:
 
 - `omnemo-os status` shows what is installed (memory and icons included) and flags anything an Omarchy update reset.
 - `omnemo-os repair` puts back what an update reset, and connects a newly arrived AI helper.
-- `omnemo-os update` moves you to the newest version. It asks nothing and leaves your memories and your own settings alone.
+- `omnemo-os update` moves you to the newest version. It asks nothing and keeps your memories and your own layout and color changes. If you edited one of its plugin files, your copy is saved in `~/.local/state/omnemo-os/replaced/` before the new one goes in.
 - `omnemo-os uninstall` puts everything back exactly as it was.
 
 You can delete the downloaded `omnemo-os` folder once it's installed. Want a new background? Tools → Theme & wallpaper now includes our own Hwy 180 at golden hour; your current wallpaper is never changed.

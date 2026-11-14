@@ -173,7 +173,7 @@
       "The memory is Omnemo, so the routine is Omnemo's: open with search \"where we left off\", recall before building, save each decision with its why, close with one \"Where we left off (<project>):\" note using supersedes. Full list: Omnemo's robot.info getting_the_most_out_of_it. search is a literal text match: search exactly \"where we left off\", or your note's exact opening such as \"where we left off (band website)\", and nothing else",
       "After an Omarchy update: omnemo-os status; if it asks for repair, run omnemo-os repair",
       "A helper started for the first time after the install: start it once (Omarchy downloads it), run omnemo-os repair, then open a NEW session of it",
-      "Updating: omnemo-os update (memories and the person's own settings are left alone)"
+      "Updating: omnemo-os update (memories and the person's own layout and colour changes are kept; a plugin file they edited is replaced, with their copy saved under ~/.local/state/omnemo-os/replaced/). When the edition's pinned Omnemo version has moved, update installs it and runs omnemo setup again by itself"
     ],
     "try_it_first": "README 'Try it in a virtual machine first': Omarchy's own Try Omarchy (Windows, Apple Silicon Mac) or the omarchy.org ISO in a virtual machine (how the edition is tested). Stay Awake (omarchy-toggle-idle) before a long install there"
   },
