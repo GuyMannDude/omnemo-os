@@ -12,7 +12,7 @@ Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the sa
 
 **Status: v0.9 Public Preview.** It runs on Omarchy 4.5 stable (out since 2026-11-05). It will be called 1.0 when it has come through a full Omarchy version update on a stock computer with the edition on. Expect rough edges, and tell us about them (see below).
 
-**Your windows will float.** Stock Omarchy tiles: windows fill the screen side by side and you steer them from the keyboard. Omnemo OS switches that to windows that overlap, that you drag and resize with the mouse, with a taskbar to find them again. If tiling is why you chose Omarchy, this is the biggest change you will notice; Super + L (Super is the Windows key) switches a workspace between the two and back.
+**Your windows will float.** Stock Omarchy tiles: windows fill the screen side by side and you steer them from the keyboard. Omnemo OS switches that to windows that overlap, that you drag and resize with the mouse, with a taskbar to find them again. If tiling is why you chose Omarchy, this is the biggest change you will notice; Super + L (Super is the Windows key) steps the current workspace through three layouts: floating, side by side, and a sliding row. A note says which one you are on; keep pressing until it says floating to get free windows back.
 
 ## Two ways to get it
 
