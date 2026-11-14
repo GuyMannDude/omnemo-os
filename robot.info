@@ -158,6 +158,26 @@
     "Tools, the wrench, Favorites and ? can be opened from a terminal: `omarchy-shell shell summon <id> {}`."
   ],
 
+  "getting_the_most_out_of_it": {
+    "install": [
+      "Get your human's yes first: it changes their desktop. Needs Omarchy 4.5 stable or newer (pacman -Q omarchy), a terminal inside the logged-in desktop, no sudo",
+      "omarchy snapshot create   (the undo point; it asks for the password, so your human types it)",
+      "git clone https://github.com/GuyMannDude/omnemo-os && cd omnemo-os && bin/omnemo-os install   (wait for it to print that it is installed; the memory step can be quiet for minutes)",
+      "Then start a NEW session of each AI helper: one open during the install does not see the memory"
+    ],
+    "prove_it_works": [
+      "omnemo-os status: a 'memory: on' line (with the number saved), and no line asking for 'omnemo-os repair'",
+      "omnemo save \"Omnemo OS installed on $(date +%F)\", then omnemo recall \"when was omnemo os installed\": the fact comes back. Then ask a new helper session to recall it through the omnemo MCP server"
+    ],
+    "routine": [
+      "The memory is Omnemo, so the routine is Omnemo's: open with search \"where we left off\", recall before building, save each decision with its why, close with one \"Where we left off (<project>):\" note using supersedes. Full list: Omnemo's robot.info getting_the_most_out_of_it. search is a literal text match: search exactly \"where we left off\", with no other words",
+      "After an Omarchy update: omnemo-os status; if it asks for repair, run omnemo-os repair",
+      "A helper started for the first time after the install: omnemo-os repair connects it to the memory",
+      "Updating: omnemo-os update (memories and the person's own settings are left alone)"
+    ],
+    "try_it_first": "README 'Try it in a virtual machine first': Omarchy's own Try Omarchy (Windows, Apple Silicon Mac) or the omarchy.org ISO in a virtual machine (how the edition is tested). Stay Awake (omarchy-toggle-idle) before a long install there"
+  },
+
   "changelog": [
     {"version": "0.9.3", "date": "2026-11-11", "changes": ["`omnemo-os update`.", "The flag ripples like cloth, holds still on battery and without a graphics card.", "Safety copies of the AI helpers' settings files, restored at uninstall.", "Never downloads AI helpers; memory goes only to helpers really installed.", "Super + M minimizes to the taskbar on every workspace layout."]},
     {"version": "0.9.2", "date": "2026-11-07", "changes": ["Colored Papirus icons, Hwy 180 wallpaper choice, Keep-or-fresh memory questions."]},

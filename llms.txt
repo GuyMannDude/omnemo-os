@@ -4,6 +4,15 @@
 
 This installer changes a person's desktop. An agent must explain what changes and get its human's yes before running `bin/omnemo-os install`, `omnemo-os update` or `omnemo-os uninstall`. It needs Omarchy 4.5 stable or newer (`pacman -Q omarchy` 4.5.0-1+; a 4.5.0 pre-release only with `--allow-rc`), runs without sudo, and must run in a terminal inside the logged-in desktop. Memories in `~/.local/share/omnemo` survive uninstall unless the person types DELETE.
 
+## Getting the most out of it
+
+For an agent installing and using Omnemo OS; details in robot.info `getting_the_most_out_of_it`.
+
+1. Install (with your human's yes, on Omarchy 4.5+): `omarchy snapshot create`, then `git clone https://github.com/GuyMannDude/omnemo-os`, `cd omnemo-os`, `bin/omnemo-os install`. Then open a NEW session of each AI helper.
+2. Prove it: `omnemo-os status` shows `memory: on` and asks for no repair; `omnemo save "…"` then `omnemo recall "…"` returns it.
+3. Every session: the memory is Omnemo, so use Omnemo's routine: `search "where we left off"` (those exact words, a literal match), `recall` before building, `save` decisions with their why, close with one "Where we left off (<project>): …" note using `supersedes`. After an Omarchy update, or for a helper started for the first time since the install: `omnemo-os repair`.
+4. Want to look first? README "Try it in a virtual machine first" uses Omarchy's own tools.
+
 ## Docs
 
 - [README](https://github.com/GuyMannDude/omnemo-os/blob/main/README.md): What it is, the three-line install, status / repair / update / uninstall, the floating-windows change, the pre-update check, memories.

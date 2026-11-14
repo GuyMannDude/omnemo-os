@@ -19,6 +19,22 @@ Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the sa
 1. **Just the memory.** Already on Omarchy and happy with it? Install [Omnemo](https://github.com/GuyMannDude/omnemo) on its own. Its guide shows you how to use it.
 2. **The whole thing: Omnemo OS.** Install Omarchy from its own installer, then paste the three lines below. It sets up the friendlier desktop and [Omnemo](https://github.com/GuyMannDude/omnemo) memory together. If Omnemo is already on your computer, it is left exactly as it is.
 
+## Try it in a virtual machine first
+
+Want to look before it touches your computer? Run Omarchy in a virtual machine (a computer inside a window) and install Omnemo OS there. Use Omarchy's own tools, linked from [omarchy.org](https://omarchy.org) under "Try it first":
+
+- **Windows 10 or 11 PC:** [Try Omarchy for Windows](https://github.com/omacom/try-omarchy-windows). It needs hardware virtualization switched on, and setup may ask for one restart.
+- **Apple Silicon Mac, macOS 15 or newer:** [Try Omarchy](https://github.com/omacom/try-omarchy). It runs Omarchy's ARM test builds; we have not tried the edition there yet.
+- **Linux:** download the x86 ISO from [omarchy.org](https://omarchy.org) and install it in your virtual machine program. This is how we test: QEMU, 4 GB of memory, 2 processors. The Omarchy installer erases the disk it installs to; in a virtual machine that is only the virtual disk.
+
+Then, inside the virtual machine:
+
+1. Open a Terminal (Super + Enter) and type `pacman -Q omarchy`. It must say 4.5 or newer; if it doesn't, the installer stops and says so.
+2. Type `omarchy-toggle-idle` to turn on Stay Awake. Without it, Omarchy's screen lock can interrupt a long install. Type it again afterwards to turn Stay Awake back off.
+3. Follow Install below.
+
+Most virtual machines have no graphics card, so the flag on the bar holds still there, and the desktop can feel slower than on a real computer.
+
 ## Install
 
 This preview needs Omarchy 4.5 or newer. It never asks for your password, except Omarchy's own snapshot step.
