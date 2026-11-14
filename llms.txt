@@ -10,7 +10,7 @@ For an agent installing and using Omnemo OS; details in robot.info `getting_the_
 
 1. Install (with your human's yes, on Omarchy 4.5+): `omarchy snapshot create`, then `git clone https://github.com/GuyMannDude/omnemo-os`, `cd omnemo-os`, `bin/omnemo-os install`. Then open a NEW session of each AI helper.
 2. Prove it: `omnemo-os status` shows `memory: on` and asks for no repair; `omnemo save "…"` then `omnemo recall "…"` returns it.
-3. Every session: the memory is Omnemo, so use Omnemo's routine: `search "where we left off"` (those exact words, a literal match), `recall` before building, `save` decisions with their why, close with one "Where we left off (<project>): …" note using `supersedes`. After an Omarchy update, or for a helper started for the first time since the install: `omnemo-os repair`.
+3. Every session: the memory is Omnemo, so use Omnemo's routine: `search "where we left off"` (those exact words or your note's exact opening, a literal match), `recall` before building, `save` decisions with their why, close with one "Where we left off (<project>): …" note using `supersedes`. After an Omarchy update, or after starting a helper for the first time since the install: `omnemo-os repair`, then a new session of that helper.
 4. Want to look first? README "Try it in a virtual machine first" uses Omarchy's own tools.
 
 ## Docs

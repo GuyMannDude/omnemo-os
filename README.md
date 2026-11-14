@@ -23,7 +23,7 @@ Omnemo OS is our edition of [Omarchy](https://github.com/omacom/omarchy): the sa
 
 Want to look before it touches your computer? Run Omarchy in a virtual machine (a computer inside a window) and install Omnemo OS there. Use Omarchy's own tools, linked from [omarchy.org](https://omarchy.org) under "Try it first":
 
-- **Windows 10 or 11 PC:** [Try Omarchy for Windows](https://github.com/omacom/try-omarchy-windows). It needs hardware virtualization switched on, and setup may ask for one restart.
+- **Windows 10 or 11 PC:** [Try Omarchy for Windows](https://github.com/omacom/try-omarchy-windows). It needs hardware virtualization switched on, and setup may ask for one restart. We have not tried the edition in it yet.
 - **Apple Silicon Mac, macOS 15 or newer:** [Try Omarchy](https://github.com/omacom/try-omarchy). It runs Omarchy's ARM test builds; we have not tried the edition there yet.
 - **Linux:** download the x86 ISO from [omarchy.org](https://omarchy.org) and install it in your virtual machine program. This is how we test: QEMU, 4 GB of memory, 2 processors. The Omarchy installer erases the disk it installs to; in a virtual machine that is only the virtual disk.
 
