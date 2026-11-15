@@ -73,6 +73,8 @@ Check one thing, once. Run `omnemo-os status`. If it prints a line that starts "
 
 Why: one step in the Omarchy 4.5.0 update removes a helper package along with anything that was installed only because of it, and on a few computers that took the desktop with it (black screen; [omarchy#18154](https://github.com/omacom/omarchy/issues/18154)). This is stock Omarchy, not the edition, and this section goes away once the fix lands.
 
+If `omarchy update` stops with a message that it "could not satisfy dependencies" and names `hyprland`, run `omarchy refresh pacman`. It asks for your password, puts Omarchy's own download list back, and then runs the update itself. It happens when another download list was put ahead of Omarchy's, and it shows on a desktop with floating windows, which is what this edition sets up ([omarchy#18337](https://github.com/omacom/omarchy/issues/18337)). Also stock Omarchy, not the edition.
+
 ### Your memories
 
 Your memories are yours. Click **?** on the bar to see how many your AI helpers have saved. If memories from before are found when you install, you're asked "Keep them?", and uninstall asks "Keep your memories?" too. Pressing Enter always keeps them. Deleting takes typing the word DELETE, and a copy is saved first (`~/omnemo-memories-<date>.tar.gz`). Kept memories stay in `~/.local/share/omnemo`, and a later install picks them up where you left off.

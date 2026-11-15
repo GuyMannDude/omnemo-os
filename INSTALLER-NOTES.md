@@ -46,6 +46,7 @@ Before a release, in this order:
 3. Cold run on a stock Omarchy in the lab VM: install, look, uninstall, compare the home folder before and after.
 4. Update run in the lab VM: install the previous release, `./bin/omnemo-os update` from the new copy, look, then uninstall and compare.
 5. `tests/bar-check.sh` after every install, every `omnemo-os update`, and after any `omarchy update` taken with the edition on (omarchy#17952: a repeated AI meter and "is not a type" in the shell log). It looks only; the last lines list what a person must still check by eye.
+6. Lock check in the lab VM, with the edition on: lock the screen, wait until the display blanks, unlock, then count the bars: `pgrep -cx quickshell` must print 1, and `tests/bar-check.sh` must still say ok. Two open Omarchy reports describe the shell crashing in a loop when the lock screen blanks the display (omarchy#18896, omarchy#18494); the one-bar guard should leave exactly one bar either way.
 
 ## Still owed
 - Rename plugins to one product namespace (`omnemo-os.*`).
